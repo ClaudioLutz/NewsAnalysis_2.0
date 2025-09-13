@@ -1,0 +1,15 @@
+{
+  "name": "triage",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "is_match": { "type": "boolean" },
+      "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+      "topic": { "type": "string" },
+      "reason": { "type": "string" }
+    },
+    "required": ["is_match", "confidence", "topic"],
+    "additionalProperties": false
+  }
+}

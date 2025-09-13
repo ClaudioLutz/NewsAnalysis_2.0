@@ -1,0 +1,7 @@
+topics:
+  schweizer_wirtschaft:
+    include: ["Schweiz", "Wirtschaft", "Unternehmen", "Finanz", "Bank", "Versicherung"]
+    confidence_threshold: 0.70
+  fintech:
+    include: ["Fintech", "Krypto", "Zahlung", "Digitale Bank", "Neobank"]
+    confidence_threshold: 0.75

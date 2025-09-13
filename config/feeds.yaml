@@ -1,0 +1,24 @@
+rss:
+  blick:               ["https://www.blick.ch/rss.xml"]
+  luzerner_zeitung:    ["https://www.luzernerzeitung.ch/arc/outboundfeeds/rss/"]
+  st_galler_tagblatt:  ["https://www.tagblatt.ch/arc/outboundfeeds/rss/"]
+  aargauer_zeitung:    ["https://www.aargauerzeitung.ch/arc/outboundfeeds/rss/"]
+  inside_paradeplatz:  ["https://insideparadeplatz.ch/feed/"]
+  nzz:                 ["https://www.nzz.ch/recent.rss","https://www.nzz.ch/wirtschaft.rss","https://www.nzz.ch/schweiz.rss"]
+
+sitemaps:
+  20min: ["https://www.20min.ch/sitemaps/de/news.xml"]   # parse <url><loc>, <news:title>, <news:publication_date>
+
+html:
+  businessclassost:
+    url: "https://www.businessclassost.ch/news-categories/news"
+    selectors:
+      item: "div.card.w-dyn-item"
+      date: "div.datum"
+      title: "h2.heading.h4"
+      hidden_url: "div.hiddenarticleurl"
+
+google_news_rss:
+  wirtschaft:   "https://news.google.com/rss/search?q=wirtschaft&hl=de-CH&gl=CH&ceid=CH:de"
+  fintech:      "https://news.google.com/rss/search?q=fintech&hl=de-CH&gl=CH&ceid=CH:de"
+  schweiz:      "https://news.google.com/rss/search?q=Schweiz&hl=de-CH&gl=CH&ceid=CH:de"
