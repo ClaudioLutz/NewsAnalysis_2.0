@@ -1,0 +1,185 @@
+# AI News Analysis System - Git Ignore File
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+news.db*
+
+# Data and output directories
+data/
+out/
+logs/
+*.log
+*.log.*
+
+# MCP and Playwright
+.playwright/
+playwright-report/
+test-results/
+node_modules/
+package-lock.json
+yarn.lock
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Archive files
+*.tar.gz
+*.zip
+*.rar
+
+# Backup files
+*.bak
+*.backup
+
+# Config files with secrets (keep templates)
+config/secrets.yaml
+config/production.yaml
+
+# Sample data and fixtures (keep templates)
+fixtures/sample_feeds/*.xml
+fixtures/sample_feeds/*.html
+fixtures/sample_feeds/*.rss
+fixtures/test_data/
+
+# Generated documentation
+docs/_build/
+site/
+
+# Coverage reports
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff (if needed later)
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff (if needed later)
+instance/
+.webassets-cache
+
+# Scrapy stuff (if needed later)
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# FastAPI
+.fastapi/
+
+# Keep these files/directories
+!.env.example
+!fixtures/sample_feeds/.gitkeep
+!out/.gitkeep
+!data/.gitkeep
+!logs/.gitkeep
