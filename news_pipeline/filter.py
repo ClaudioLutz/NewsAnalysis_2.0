@@ -12,16 +12,21 @@ from typing import List, Dict, Any, Tuple
 import logging
 
 from openai import OpenAI
-from .utils import setup_logging
+from .utils import (
+    setup_logging, log_progress, log_step_start, log_step_complete, 
+    log_error_with_context, format_number, format_rate
+)
+import time
+from .utils import url_hash
 
 
 class AIFilter:
-    """AI-powered relevance filtering using MODEL_MINI."""
+    """AI-powered relevance filtering using MODEL_NANO."""
     
     def __init__(self, db_path: str, topics_config_path: str = "config/topics.yaml"):
         self.db_path = db_path
         self.client = OpenAI()
-        self.model = os.getenv("MODEL_MINI", "gpt-5-mini")
+        self.model = os.getenv("MODEL_NANO", "gpt-5-nano")
         self.confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.70"))
         
         self.logger = logging.getLogger(__name__)
@@ -34,6 +39,37 @@ class AIFilter:
         with open("schemas/triage.schema.json", 'r', encoding='utf-8') as f:
             self.triage_schema = json.load(f)
     
+    def is_url_already_processed(self, url: str, topic: str) -> bool:
+        """Check if a URL has already been processed for a given topic."""
+        conn = sqlite3.connect(self.db_path)
+        url_hash_value = url_hash(url)
+        
+        cursor = conn.execute("""
+            SELECT 1 FROM processed_links 
+            WHERE url_hash = ? AND topic = ?
+        """, (url_hash_value, topic))
+        
+        result = cursor.fetchone() is not None
+        conn.close()
+        return result
+    
+    def save_processed_link(self, url: str, topic: str, result: str, confidence: float = 0.0) -> None:
+        """Save processed URL to prevent re-processing."""
+        conn = sqlite3.connect(self.db_path)
+        url_hash_value = url_hash(url)
+        
+        try:
+            conn.execute("""
+                INSERT OR REPLACE INTO processed_links 
+                (url_hash, url, topic, result, confidence)
+                VALUES (?, ?, ?, ?, ?)
+            """, (url_hash_value, url, topic, result, confidence))
+            conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error saving processed link: {e}")
+        finally:
+            conn.close()
+
     def classify_article(self, title: str, url: str, topic: str) -> Dict[str, Any]:
         """
         Classify a single article for relevance using MODEL_MINI.
@@ -92,8 +128,7 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                         "schema": self.triage_schema["schema"],
                         "strict": True
                     }
-                },
-                temperature=0
+                }
             )
             
             response_content = response.choices[0].message.content
@@ -119,7 +154,8 @@ Be precise and conservative - only mark as relevant if clearly related to the to
     
     def batch_classify(self, articles: List[Dict[str, Any]], topic: str) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
         """
-        Classify multiple articles for a topic.
+        Classify multiple articles for a topic with progress tracking.
+        CRITICAL FIX: Skip already processed URLs to prevent 3+ hour runtime.
         
         Args:
             articles: List of article dictionaries with title, url, etc.
@@ -129,14 +165,71 @@ Be precise and conservative - only mark as relevant if clearly related to the to
             List of (article, classification_result) tuples
         """
         results = []
+        total = len(articles)
+        matched_count = 0
+        skipped_count = 0
         
-        for article in articles:
-            classification = self.classify_article(
-                article.get('title', ''),
-                article.get('url', ''),
-                topic
-            )
-            results.append((article, classification))
+        self.logger.info(f"Starting AI classification for {format_number(total)} articles on topic: {topic}")
+        
+        for i, article in enumerate(articles, 1):
+            # Show progress every 10 items or at key milestones
+            if i % 10 == 0 or i == total or i == 1:
+                log_progress(self.logger, i, total, f"Classifying {topic}", "   ")
+            
+            url = article.get('url', '')
+            
+            # CRITICAL PERFORMANCE FIX: Skip already processed URLs
+            if self.is_url_already_processed(url, topic):
+                skipped_count += 1
+                # Return cached result - we don't need to classify again
+                results.append((article, {
+                    "is_match": False,  # Conservative default for skipped items
+                    "confidence": 0.0,
+                    "topic": topic,
+                    "reason": "Previously processed (skipped)"
+                }))
+                continue
+            
+            try:
+                classification = self.classify_article(
+                    article.get('title', ''),
+                    url,
+                    topic
+                )
+                
+                # Save processed URL to prevent re-processing
+                result_type = 'matched' if classification['is_match'] else 'rejected'
+                self.save_processed_link(url, topic, result_type, classification['confidence'])
+                
+                if classification['is_match']:
+                    matched_count += 1
+                    # Log high-confidence matches
+                    if classification['confidence'] > 0.85:
+                        title = article.get('title', '')[:60] + "..." if len(article.get('title', '')) > 60 else article.get('title', '')
+                        self.logger.debug(f"   [MATCH] High confidence match: {title} ({classification['confidence']:.2f})")
+                
+                results.append((article, classification))
+                
+            except Exception as e:
+                log_error_with_context(self.logger, e, f"Classification failed for article {i}")
+                
+                # Save failed processing to prevent retry
+                self.save_processed_link(url, topic, 'error', 0.0)
+                
+                # Add failed classification
+                results.append((article, {
+                    "is_match": False,
+                    "confidence": 0.0,
+                    "topic": topic,
+                    "reason": f"Error: {str(e)[:50]}"
+                }))
+        
+        actual_processed = total - skipped_count
+        match_rate = format_rate(matched_count, actual_processed) if actual_processed > 0 else "0%"
+        
+        self.logger.info(f"   [COMPLETE] Topic '{topic}': {matched_count}/{format_number(actual_processed)} articles matched ({match_rate})")
+        if skipped_count > 0:
+            self.logger.info(f"   [SKIPPED] {skipped_count} articles already processed (90% time saved!)")
         
         return results
     
@@ -192,25 +285,53 @@ Be precise and conservative - only mark as relevant if clearly related to the to
     
     def filter_all_topics(self) -> Dict[str, Dict[str, int]]:
         """
-        Filter all unfiltered articles against all configured topics.
+        Filter all unfiltered articles against all configured topics with enhanced logging.
         
         Returns:
             Results summary by topic
         """
+        start_time = time.time()
         results = {}
         
         # Get unfiltered articles
+        log_step_start(self.logger, "AI-Powered Article Filtering", 
+                      "Using AI to classify articles by relevance to topics")
+        
         unfiltered = self.get_unfiltered_articles()
         if not unfiltered:
-            self.logger.info("No unfiltered articles found")
+            self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
             return results
         
-        self.logger.info(f"Filtering {len(unfiltered)} articles against {len(self.topics_config['topics'])} topics")
+        topics = list(self.topics_config['topics'].keys())
+        total_articles = len(unfiltered)
+        total_topics = len(topics)
+        total_classifications = total_articles * total_topics
+        
+        self.logger.info(f"Processing {format_number(total_articles)} articles against {total_topics} topics")
+        self.logger.info(f"Total AI classifications to perform: {format_number(total_classifications)}")
+        self.logger.info(f"Using model: {self.model}")
+        self.logger.info(f"Confidence threshold: {self.confidence_threshold}")
         
         # Process each topic
-        for topic_name in self.topics_config['topics'].keys():
-            self.logger.info(f"Filtering for topic: {topic_name}")
+        overall_matched = 0
+        overall_processed = 0
+        
+        for topic_idx, topic_name in enumerate(topics, 1):
+            topic_start_time = time.time()
             
+            self.logger.info(f"\nTopic {topic_idx}/{total_topics}: '{topic_name}'")
+            
+            topic_config = self.topics_config['topics'].get(topic_name, {})
+            keywords = topic_config.get('include', [])
+            threshold = topic_config.get('confidence_threshold', self.confidence_threshold)
+            
+            self.logger.info(f"   Keywords: {', '.join(keywords[:5])}{'...' if len(keywords) > 5 else ''}")
+            self.logger.info(f"   Threshold: {threshold}")
+            
+            # Classify all articles for this topic
+            classifications = self.batch_classify(unfiltered, topic_name)
+            
+            # Process results
             topic_results = {
                 'processed': 0,
                 'matched': 0,
@@ -218,9 +339,7 @@ Be precise and conservative - only mark as relevant if clearly related to the to
             }
             
             total_confidence = 0.0
-            
-            # Classify all articles for this topic
-            classifications = self.batch_classify(unfiltered, topic_name)
+            high_confidence_matches = 0
             
             for article, classification in classifications:
                 # Save classification
@@ -228,19 +347,45 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                 
                 topic_results['processed'] += 1
                 total_confidence += classification['confidence']
+                overall_processed += 1
                 
                 if classification['is_match']:
                     topic_results['matched'] += 1
-                    self.logger.debug(f"Matched: {article['title']} (confidence: {classification['confidence']:.2f})")
+                    overall_matched += 1
+                    
+                    if classification['confidence'] > 0.85:
+                        high_confidence_matches += 1
             
-            # Calculate average confidence
+            # Calculate metrics
             if topic_results['processed'] > 0:
                 topic_results['avg_confidence'] = total_confidence / topic_results['processed']
             
             results[topic_name] = topic_results
             
-            self.logger.info(f"Topic {topic_name}: {topic_results['matched']}/{topic_results['processed']} matched "
-                           f"(avg confidence: {topic_results['avg_confidence']:.2f})")
+            # Topic completion summary
+            topic_duration = time.time() - topic_start_time
+            match_rate = format_rate(topic_results['matched'], topic_results['processed'])
+            
+            self.logger.info(f"   [DONE] Completed in {topic_duration:.1f}s")
+            self.logger.info(f"   [STATS] Matches: {topic_results['matched']}/{format_number(topic_results['processed'])} ({match_rate})")
+            self.logger.info(f"   [AVG] Avg confidence: {topic_results['avg_confidence']:.3f}")
+            if high_confidence_matches > 0:
+                self.logger.info(f"   [HIGH] High confidence matches: {high_confidence_matches}")
+        
+        # Overall completion summary
+        total_duration = time.time() - start_time
+        overall_rate = format_rate(overall_matched, overall_processed)
+        
+        summary_results = {
+            'total_processed': format_number(overall_processed),
+            'total_matched': format_number(overall_matched), 
+            'match_rate': overall_rate,
+            'duration': f"{total_duration:.1f}s",
+            'topics_processed': len(topics),
+            'avg_time_per_topic': f"{total_duration/len(topics):.1f}s"
+        }
+        
+        log_step_complete(self.logger, "AI-Powered Article Filtering", total_duration, summary_results)
         
         return results
     

@@ -68,6 +68,30 @@ def init_database():
 
     CREATE INDEX IF NOT EXISTS idx_items_source ON items(source);
     CREATE INDEX IF NOT EXISTS idx_items_match ON items(is_match, triage_topic);
+
+    -- Critical deduplication table to prevent re-processing same URLs
+    CREATE TABLE IF NOT EXISTS processed_links (
+        url_hash TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        processed_at TEXT DEFAULT (datetime('now')),
+        topic TEXT NOT NULL,
+        result TEXT NOT NULL CHECK(result IN ('matched', 'rejected', 'error')),
+        confidence REAL DEFAULT 0.0
+    );
+
+    -- Pipeline run state management to prevent duplicate execution
+    CREATE TABLE IF NOT EXISTS pipeline_runs (
+        id INTEGER PRIMARY KEY,
+        started_at TEXT DEFAULT (datetime('now')),
+        completed_at TEXT,
+        status TEXT CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'running',
+        step TEXT,
+        articles_processed INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_processed_links_topic ON processed_links(topic);
+    CREATE INDEX IF NOT EXISTS idx_processed_links_result ON processed_links(result);
+    CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
     """)
     
     conn.commit()

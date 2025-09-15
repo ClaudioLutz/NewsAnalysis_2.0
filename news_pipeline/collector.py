@@ -23,9 +23,10 @@ from .utils import normalize_url, url_hash, is_allowed_by_robots, parse_date, ti
 class NewsCollector:
     """Collect headline-level metadata from various Swiss news sources."""
     
-    def __init__(self, db_path: str, config_path: str = "config/feeds.yaml"):
+    def __init__(self, db_path: str, config_path: str = "config/feeds.yaml", respect_robots: bool = False):
         self.db_path = db_path
         self.config_path = config_path
+        self.respect_robots = respect_robots
         self.user_agent = os.getenv("USER_AGENT", "NewsAnalyzerBot/1.0 (+contact@email)")
         self.max_items_per_feed = int(os.getenv("MAX_ITEMS_PER_FEED", "120"))
         self.request_timeout = int(os.getenv("REQUEST_TIMEOUT_SEC", "12"))
@@ -49,7 +50,7 @@ class NewsCollector:
         
         for url in feed_urls:
             try:
-                if not is_allowed_by_robots(url, self.user_agent):
+                if not is_allowed_by_robots(url, self.user_agent, self.respect_robots):
                     self.logger.warning(f"Robots.txt disallows {url}")
                     continue
                 
@@ -119,7 +120,7 @@ class NewsCollector:
         
         for url in sitemap_urls:
             try:
-                if not is_allowed_by_robots(url, self.user_agent):
+                if not is_allowed_by_robots(url, self.user_agent, self.respect_robots):
                     self.logger.warning(f"Robots.txt disallows {url}")
                     continue
                 
@@ -182,7 +183,7 @@ class NewsCollector:
                 url = config_data['url']
                 selectors = config_data['selectors']
                 
-                if not is_allowed_by_robots(url, self.user_agent):
+                if not is_allowed_by_robots(url, self.user_agent, self.respect_robots):
                     self.logger.warning(f"Robots.txt disallows {url}")
                     continue
                 
@@ -247,7 +248,7 @@ class NewsCollector:
         
         for topic, url in queries.items():
             try:
-                if not is_allowed_by_robots(url, self.user_agent):
+                if not is_allowed_by_robots(url, self.user_agent, self.respect_robots):
                     self.logger.warning(f"Robots.txt disallows {url}")
                     continue
                 

@@ -54,17 +54,21 @@ def url_hash(url: str) -> str:
     normalized = normalize_url(url)
     return hashlib.sha1(normalized.encode('utf-8')).hexdigest()
 
-def is_allowed_by_robots(url: str, user_agent: str) -> bool:
+def is_allowed_by_robots(url: str, user_agent: str, respect_robots: bool = True) -> bool:
     """
     Check if URL is allowed by robots.txt.
     
     Args:
         url: URL to check
         user_agent: User agent string
+        respect_robots: Whether to respect robots.txt (default: True)
         
     Returns:
         True if allowed, False otherwise
     """
+    if not respect_robots:
+        return True
+        
     try:
         parsed = urlparse(url)
         robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
@@ -143,13 +147,94 @@ def extract_canonical_url(html: str) -> str | None:
     return None
 
 def setup_logging(level: str = "INFO") -> logging.Logger:
-    """Set up logging configuration."""
-    logging.basicConfig(
-        level=getattr(logging, level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('news_pipeline.log', mode='a')
-        ]
+    """Set up enhanced logging configuration with better formatting."""
+    import sys
+    
+    # Create formatter with better format
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S'
     )
+    
+    # Console handler with custom formatter
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    
+    # File handler
+    file_handler = logging.FileHandler('news_pipeline.log', mode='a')
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, level.upper()))
+    
+    # Clear existing handlers to avoid duplicates
+    root_logger.handlers.clear()
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
+    
+    # Reduce noise from httpx
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    
     return logging.getLogger(__name__)
+
+
+def log_progress(logger: logging.Logger, current: int, total: int, operation: str = "Processing", prefix: str = "") -> None:
+    """
+    Log progress with percentage and progress bar.
+    
+    Args:
+        logger: Logger instance
+        current: Current item number
+        total: Total items to process
+        operation: Operation being performed
+        prefix: Optional prefix for the log message
+    """
+    if total == 0:
+        return
+        
+    percentage = (current / total) * 100
+    bar_length = 20
+    filled_length = int(bar_length * current / total)
+    bar = '#' * filled_length + '-' * (bar_length - filled_length)
+    
+    message = f"{prefix}{operation}: [{bar}] {current}/{total} ({percentage:.1f}%)"
+    logger.info(message)
+
+
+def log_step_start(logger: logging.Logger, step_name: str, description: str = "") -> None:
+    """Log the start of a pipeline step with clear formatting."""
+    logger.info(f"\n{'='*60}")
+    logger.info(f">> {step_name}")
+    if description:
+        logger.info(f"   {description}")
+    logger.info(f"{'='*60}")
+
+
+def log_step_complete(logger: logging.Logger, step_name: str, duration: float, results: dict | None = None) -> None:
+    """Log the completion of a pipeline step with results."""
+    logger.info(f"\n[COMPLETED] {step_name} in {duration:.1f}s")
+    if results:
+        for key, value in results.items():
+            logger.info(f"   * {key}: {value}")
+    logger.info(f"{'-'*60}")
+
+
+def log_error_with_context(logger: logging.Logger, error: Exception, context: str) -> None:
+    """Log error with additional context."""
+    logger.error(f"[ERROR] {context}: {type(error).__name__}: {str(error)}")
+
+
+def format_number(num: int) -> str:
+    """Format numbers with thousand separators."""
+    return f"{num:,}"
+
+
+def format_rate(success: int, total: int) -> str:
+    """Format success rate as percentage."""
+    if total == 0:
+        return "0%"
+    return f"{(success/total)*100:.1f}%"

@@ -129,9 +129,54 @@ Return the extracted text as plain text without any formatting or metadata."""
             self.logger.error(f"MCP extraction failed for {url}: {e}")
             return None
     
+    def resolve_google_news_url(self, url: str) -> Optional[str]:
+        """
+        Resolve Google News redirect URLs to actual article URLs.
+        
+        Args:
+            url: Potentially redirected Google News URL
+            
+        Returns:
+            Direct article URL or resolved URL
+        """
+        if "news.google.com/rss/articles/" not in url:
+            return url
+            
+        # Try to follow Google News redirects
+        try:
+            import requests
+            
+            # Try to follow redirects to get the actual URL
+            self.logger.debug(f"Attempting to resolve Google News redirect: {url}")
+            
+            response = requests.head(url, allow_redirects=True, timeout=10)
+            resolved_url = response.url
+            
+            # Check if we got a different URL
+            if resolved_url != url and "google.com" not in resolved_url:
+                self.logger.info(f"Resolved Google News URL: {url} -> {resolved_url}")
+                return resolved_url
+            else:
+                # Fallback: try with requests.get to handle JavaScript redirects
+                response = requests.get(url, timeout=10, allow_redirects=True)
+                if response.url != url and "google.com" not in response.url:
+                    self.logger.info(f"Resolved Google News URL via GET: {url} -> {response.url}")
+                    return response.url
+                
+                # If still a Google URL, try to use the original URL anyway
+                # Trafilatura and MCP might be able to handle it
+                self.logger.warning(f"Could not resolve Google News redirect, using original: {url}")
+                return url
+                
+        except Exception as e:
+            self.logger.warning(f"Error resolving Google News URL {url}: {e}")
+            # Don't skip entirely, try to use the original URL
+            return url
+    
     def extract_content(self, url: str) -> tuple[Optional[str], str]:
         """
         Extract content using both methods with fallback.
+        CRITICAL FIX: Handle Google News redirects and improve error handling.
         
         Args:
             url: Article URL to scrape
@@ -139,22 +184,35 @@ Return the extracted text as plain text without any formatting or metadata."""
         Returns:
             Tuple of (extracted_text, method_used)
         """
-        # Method 1: Try trafilatura first (faster)
-        extracted = self.scrape_with_trafilatura(url)
+        # CRITICAL FIX: Handle Google News redirect URLs
+        resolved_url = self.resolve_google_news_url(url)
+        if not resolved_url:
+            self.logger.warning(f"Skipping problematic redirect URL: {url}")
+            return None, "skipped_redirect"
+        
+        # Method 1: Try trafilatura first (faster and more reliable)
+        extracted = self.scrape_with_trafilatura(resolved_url)
         if extracted:
             return extracted, "trafilatura"
         
-        # Method 2: Try MCP + Playwright for complex sites
+        # Method 2: Try MCP + Playwright for complex sites (with better error handling)
         if self.mcp_agent:
             try:
-                extracted = asyncio.run(self.scrape_with_mcp(url))
+                # Set a timeout to avoid hanging
+                extracted = asyncio.wait_for(
+                    self.scrape_with_mcp(resolved_url), 
+                    timeout=60.0
+                )
+                extracted = asyncio.run(extracted)
                 if extracted:
                     return extracted, "playwright"
+            except asyncio.TimeoutError:
+                self.logger.error(f"MCP extraction timeout for {resolved_url}")
             except Exception as e:
-                self.logger.error(f"MCP async extraction failed: {e}")
+                self.logger.error(f"MCP extraction failed for {resolved_url}: {e}")
         
         # Both methods failed
-        self.logger.warning(f"Content extraction failed for {url}")
+        self.logger.warning(f"Content extraction failed for {resolved_url}")
         return None, "failed"
     
     def get_articles_to_scrape(self, limit: int = 50) -> List[Dict[str, Any]]:

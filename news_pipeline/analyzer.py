@@ -161,8 +161,7 @@ Be analytical, concise, and executive-focused. Synthesize rather than just summa
                         "schema": response_schema,
                         "strict": True
                     }
-                },
-                temperature=0.2
+                }
             )
             
             response_content = response.choices[0].message.content
@@ -364,7 +363,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
                     "key_themes": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
                     "top_priorities": {"type": "array", "items": {"type": "string"}, "maxItems": 3}
                 },
-                "required": ["headline", "executive_summary", "key_themes"],
+                "required": ["headline", "executive_summary", "key_themes", "top_priorities"],
                 "additionalProperties": False
             }
             
@@ -381,8 +380,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
                         "schema": response_schema,
                         "strict": True
                     }
-                },
-                temperature=0.2
+                }
             )
             
             response_content = response.choices[0].message.content

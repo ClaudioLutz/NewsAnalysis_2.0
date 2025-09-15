@@ -27,58 +27,58 @@ def create_directories():
     
     for dir_name in directories:
         Path(dir_name).mkdir(parents=True, exist_ok=True)
-        print(f"✓ Created directory: {dir_name}")
+        print(f"[OK] Created directory: {dir_name}")
 
 def init_database():
     """Initialize the database."""
-    print("\n🗄️  Initializing database...")
+    print("\n[DB] Initializing database...")
     try:
         from scripts.init_db import init_database
         init_database()
-        print("✓ Database initialized successfully")
+        print("[OK] Database initialized successfully")
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"[ERROR] Database initialization failed: {e}")
         return False
     return True
 
 def load_feeds():
     """Load feed configurations."""
-    print("\n📰 Loading feed configurations...")
+    print("\n[FEEDS] Loading feed configurations...")
     try:
         from scripts.load_feeds import load_feeds_from_config
         load_feeds_from_config()
-        print("✓ Feed configurations loaded successfully")
+        print("[OK] Feed configurations loaded successfully")
     except Exception as e:
-        print(f"❌ Feed loading failed: {e}")
+        print(f"[ERROR] Feed loading failed: {e}")
         return False
     return True
 
 def verify_installation():
     """Verify that all components can be imported."""
-    print("\n🔍 Verifying installation...")
+    print("\n[VERIFY] Verifying installation...")
     
     try:
         from news_pipeline import (
             NewsCollector, AIFilter, ContentScraper, 
             ArticleSummarizer, MetaAnalyzer
         )
-        print("✓ Core pipeline components imported successfully")
+        print("[OK] Core pipeline components imported successfully")
         
         # Test basic functionality
         db_path = os.getenv("DB_PATH", "./news.db")
         collector = NewsCollector(db_path)
         filter_obj = AIFilter(db_path)
         
-        print("✓ Components initialized successfully")
+        print("[OK] Components initialized successfully")
         return True
         
     except Exception as e:
-        print(f"❌ Component verification failed: {e}")
+        print(f"[ERROR] Component verification failed: {e}")
         return False
 
 def main():
     """Main setup function."""
-    print("🚀 AI News Analysis System Setup")
+    print("AI News Analysis System Setup")
     print("=" * 40)
     
     # Create directories
@@ -86,20 +86,20 @@ def main():
     
     # Initialize database
     if not init_database():
-        print("\n❌ Setup failed at database initialization")
+        print("\n[FAIL] Setup failed at database initialization")
         sys.exit(1)
     
     # Load feeds
     if not load_feeds():
-        print("\n❌ Setup failed at feed loading")
+        print("\n[FAIL] Setup failed at feed loading")
         sys.exit(1)
     
     # Verify installation
     if not verify_installation():
-        print("\n❌ Setup failed at verification")
+        print("\n[FAIL] Setup failed at verification")
         sys.exit(1)
     
-    print("\n✅ Setup completed successfully!")
+    print("\n[SUCCESS] Setup completed successfully!")
     print("\nNext steps:")
     print("1. Copy .env.example to .env and add your OpenAI API key")
     print("2. Run: python news_analyzer.py --help")

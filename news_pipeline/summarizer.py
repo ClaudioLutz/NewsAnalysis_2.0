@@ -49,7 +49,11 @@ Return strict JSON with:
 - title: cleaned/enhanced article title
 - summary: concise 150-200 word summary capturing main points
 - key_points: array of 3-6 most important bullet points
-- entities: object with categories (companies, people, locations, topics) as keys and arrays of relevant entities as values
+- entities: object with exactly these keys:
+  - companies: array of company names mentioned
+  - people: array of person names mentioned
+  - locations: array of places/countries mentioned
+  - topics: array of key topics/themes
 
 Focus on:
 1. Swiss business context and implications
@@ -80,8 +84,7 @@ Be precise, factual, and focus on business/financial significance."""
                         "schema": self.summary_schema["schema"],
                         "strict": True
                     }
-                },
-                temperature=0.1
+                }
             )
             
             response_content = response.choices[0].message.content
