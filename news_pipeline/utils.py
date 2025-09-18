@@ -146,10 +146,11 @@ def extract_canonical_url(html: str) -> str | None:
         return canonical_match.group(1)
     return None
 
-def setup_logging(level: str = "INFO") -> logging.Logger:
-    """Set up enhanced logging configuration with Unicode support."""
+def setup_logging(level: str = "INFO", log_to_file: bool = True, component: str = "pipeline") -> logging.Logger:
+    """Set up enhanced logging configuration with organized file structure."""
     import sys
     import os
+    from datetime import datetime
     
     # Fix Windows console encoding for Unicode characters
     if os.name == 'nt':  # Windows
@@ -210,16 +211,12 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
     )
     
     file_formatter = UnicodeFormatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
     )
     
     # Console handler with Unicode-safe formatter
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
-    
-    # File handler with UTF-8 encoding
-    file_handler = logging.FileHandler('news_pipeline.log', mode='a', encoding='utf-8')
-    file_handler.setFormatter(file_formatter)
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -228,7 +225,67 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
     # Clear existing handlers to avoid duplicates
     root_logger.handlers.clear()
     root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
+    
+    # Set up file logging if requested
+    if log_to_file:
+        # Ensure logs directory exists
+        logs_dir = "logs"
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Create timestamped log files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Main pipeline log (all events)
+        main_log_path = os.path.join(logs_dir, f"pipeline_{timestamp}.log")
+        main_file_handler = logging.FileHandler(main_log_path, mode='w', encoding='utf-8')
+        main_file_handler.setFormatter(file_formatter)
+        root_logger.addHandler(main_file_handler)
+        
+        # Component-specific log
+        if component != "pipeline":
+            component_log_path = os.path.join(logs_dir, f"{component}_{timestamp}.log")
+            component_file_handler = logging.FileHandler(component_log_path, mode='w', encoding='utf-8')
+            component_file_handler.setFormatter(file_formatter)
+            component_file_handler.addFilter(lambda record: record.name.startswith(f'news_pipeline.{component}'))
+            root_logger.addHandler(component_file_handler)
+        
+        # Error log (errors only)
+        error_log_path = os.path.join(logs_dir, f"errors_{timestamp}.log")
+        error_file_handler = logging.FileHandler(error_log_path, mode='w', encoding='utf-8')
+        error_file_handler.setLevel(logging.ERROR)
+        error_file_handler.setFormatter(file_formatter)
+        root_logger.addHandler(error_file_handler)
+        
+        # Create latest symlinks (if supported on the system)
+        try:
+            latest_main = os.path.join(logs_dir, "latest_pipeline.log")
+            latest_error = os.path.join(logs_dir, "latest_errors.log")
+            
+            # Remove existing symlinks
+            for link_path in [latest_main, latest_error]:
+                if os.path.exists(link_path):
+                    os.remove(link_path)
+            
+            # Create new symlinks (Windows requires admin rights, so copy instead)
+            if os.name == 'nt':
+                import shutil
+                # On Windows, just copy the file
+                shutil.copy2(main_log_path, latest_main)
+                shutil.copy2(error_log_path, latest_error)
+            else:
+                # On Unix systems, create symlinks
+                os.symlink(os.path.basename(main_log_path), latest_main)
+                os.symlink(os.path.basename(error_log_path), latest_error)
+                
+        except (OSError, ImportError):
+            # Symlinks not supported, skip
+            pass
+        
+        print(f"[LOGGING] Logs will be saved to:")
+        print(f"  - Main log: {main_log_path}")
+        print(f"  - Error log: {error_log_path}")
+        if component != "pipeline":
+            print(f"  - {component.title()} log: {component_log_path}")
     
     # Reduce noise from external libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)

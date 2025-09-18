@@ -7,8 +7,12 @@ MODEL_MINI powered summarization with structured outputs for key insights.
 import os
 import json
 import sqlite3
-import logging
 from typing import List, Dict, Any, Optional
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from openai import OpenAI
 

@@ -35,7 +35,12 @@ class NewsCollector:
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': self.user_agent,
-            'Accept': 'application/rss+xml,application/xml;q=0.9,text/xml;q=0.8,*/*;q=0.5'
+            'Accept': 'application/rss+xml,application/xml;q=0.9,text/xml;q=0.8,*/*;q=0.5',
+            'Accept-Language': 'de-CH,de;q=0.9,en;q=0.8',  # RESEARCH FIX: Swiss locale preference
+            'Accept-Encoding': 'gzip, deflate, br, zstd',  # RESEARCH FIX: Include zstd support
+            'Connection': 'keep-alive',
+            'DNT': '1',
+            'Upgrade-Insecure-Requests': '1'
         })
         
         self.logger = logging.getLogger(__name__)
@@ -56,11 +61,15 @@ class NewsCollector:
                 
                 self.logger.info(f"Fetching RSS feed: {url}")
                 
-                # Use feedparser to parse RSS/Atom feeds
+                # RESEARCH FIX: Use bozo-tolerant parsing with proper error handling
                 feed = feedparser.parse(url)
                 
                 if feed.bozo and feed.bozo_exception:
                     self.logger.warning(f"Feed parsing issues for {url}: {feed.bozo_exception}")
+                    # Continue processing despite malformed XML - feedparser often recovers
+                    if not feed.entries:
+                        self.logger.error(f"No entries found in malformed feed {url}, skipping")
+                        continue
                 
                 for entry in feed.entries[:self.max_items_per_feed]:
                     # Get the article URL

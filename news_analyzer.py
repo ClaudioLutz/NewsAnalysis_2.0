@@ -43,9 +43,9 @@ import time
 class NewsPipeline:
     """Main pipeline orchestrator for the 5-step news analysis workflow."""
     
-    def __init__(self, db_path: str | None = None):
+    def __init__(self, db_path: str | None = None, enable_file_logging: bool = True):
         self.db_path = db_path or os.getenv("DB_PATH", "./news.db")
-        self.logger = setup_logging()
+        self.logger = setup_logging(log_to_file=enable_file_logging, component="pipeline")
         
         # Initialize components
         self.collector = NewsCollector(self.db_path)
@@ -311,6 +311,12 @@ Examples:
         help="Database path (default: from environment)"
     )
     
+    parser.add_argument(
+        "--no-file-logging",
+        action="store_true",
+        help="Disable file logging (console output only)"
+    )
+    
     args = parser.parse_args()
     
     # Set up logging level
@@ -318,8 +324,9 @@ Examples:
         import logging
         logging.getLogger().setLevel(logging.DEBUG)
     
-    # Initialize pipeline
-    pipeline = NewsPipeline(db_path=args.db_path)
+    # Initialize pipeline with logging preference
+    enable_file_logging = not args.no_file_logging
+    pipeline = NewsPipeline(db_path=args.db_path, enable_file_logging=enable_file_logging)
     
     # Export format handling
     export_format = "markdown" if args.format in ["markdown", "md"] else "json"

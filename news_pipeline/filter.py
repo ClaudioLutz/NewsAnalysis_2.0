@@ -10,6 +10,10 @@ import sqlite3
 import yaml
 from typing import List, Dict, Any, Tuple
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from openai import OpenAI
 from .utils import (

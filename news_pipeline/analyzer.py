@@ -7,9 +7,13 @@ Aggregate intelligence using MODEL_MINI for comprehensive topic analysis.
 import os
 import json
 import sqlite3
+from typing import List, Dict, Any
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from openai import OpenAI
 
