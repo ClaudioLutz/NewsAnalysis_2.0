@@ -233,17 +233,29 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return results
     
-    def get_unfiltered_articles(self) -> List[Dict[str, Any]]:
+    def get_unfiltered_articles(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Get articles from database that haven't been filtered yet."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
-        cursor = conn.execute("""
-            SELECT id, source, url, title, published_at, first_seen_at
-            FROM items 
-            WHERE triage_topic IS NULL 
-            ORDER BY first_seen_at DESC
-        """)
+        if force_refresh:
+            # Re-process recent articles (last 3 days) for testing/refreshing
+            cursor = conn.execute("""
+                SELECT id, source, url, title, published_at, first_seen_at
+                FROM items 
+                WHERE first_seen_at > datetime('now', '-3 days')
+                ORDER BY first_seen_at DESC
+                LIMIT 100
+            """)
+            self.logger.info("Force refresh mode: re-processing recent articles")
+        else:
+            # Normal mode: only unfiltered articles
+            cursor = conn.execute("""
+                SELECT id, source, url, title, published_at, first_seen_at
+                FROM items 
+                WHERE triage_topic IS NULL 
+                ORDER BY first_seen_at DESC
+            """)
         
         articles = []
         for row in cursor.fetchall():
@@ -283,111 +295,305 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         finally:
             conn.close()
     
-    def filter_all_topics(self) -> Dict[str, Dict[str, int]]:
+    def calculate_priority_score(self, article: Dict[str, Any]) -> float:
         """
-        Filter all unfiltered articles against all configured topics with enhanced logging.
+        Calculate priority score for article processing order.
+        Higher score = process first.
         
+        Factors:
+        - Source credibility (government/financial = high)
+        - Article freshness (today = 1.0, yesterday = 0.9, etc.)
+        - URL quality indicators
+        """
+        score = 0.0
+        url = article.get('url', '').lower()
+        published_at = article.get('published_at', article.get('first_seen_at', ''))
+        
+        # Source credibility scoring
+        tier_1_sources = ['admin.ch', 'finma.ch', 'snb.ch', 'seco.admin.ch', 'bfs.admin.ch']
+        tier_2_sources = ['handelszeitung.ch', 'finews.ch', 'fuw.ch', 'cash.ch']
+        tier_3_sources = ['nzz.ch', 'srf.ch']
+        
+        if any(source in url for source in tier_1_sources):
+            score += 3.0  # Government sources get highest priority
+        elif any(source in url for source in tier_2_sources):
+            score += 2.0  # Financial news sources
+        elif any(source in url for source in tier_3_sources):
+            score += 1.0  # General news sources
+        else:
+            score += 0.5  # Unknown sources get lowest priority
+        
+        # Freshness scoring (rough approximation)
+        if published_at:
+            try:
+                from datetime import datetime, timezone
+                import dateutil.parser
+                
+                pub_date = dateutil.parser.parse(published_at)
+                now = datetime.now(timezone.utc)
+                days_old = (now - pub_date).days
+                
+                # Decay score by age: today=1.0, yesterday=0.9, etc.
+                freshness_score = max(0.1, 1.0 - (days_old * 0.1))
+                score += freshness_score
+            except:
+                score += 0.5  # Default if date parsing fails
+        
+        # URL quality indicators
+        if '/artikel/' in url or '/news/' in url or '/artikel-' in url:
+            score += 0.3  # Looks like a proper article URL
+        if '?' not in url or url.count('?') == 1:
+            score += 0.2  # Clean URL structure
+        
+        return score
+
+    def filter_for_creditreform(self, mode: str = "standard") -> Dict[str, Any]:
+        """
+        OPTIMIZED: Single-pass filtering focused on Creditreform insights only.
+        Replaces filter_all_topics() with smart priority-based processing.
+        
+        Args:
+            mode: "express" for < 3min, "standard" for < 8min
+            
         Returns:
-            Results summary by topic
+            Enhanced results with priority scoring and early termination
         """
         start_time = time.time()
-        results = {}
         
-        # Get unfiltered articles
-        log_step_start(self.logger, "AI-Powered Article Filtering", 
-                      "Using AI to classify articles by relevance to topics")
+        log_step_start(self.logger, "Creditreform-Focused AI Filtering", 
+                      f"Single-pass classification for actionable insights ({mode} mode)")
         
-        unfiltered = self.get_unfiltered_articles()
+        # Get unfiltered articles (force refresh for testing if needed)
+        force_refresh = (mode == "express")  # Force refresh for express mode to test recent articles
+        unfiltered = self.get_unfiltered_articles(force_refresh=force_refresh)
+        
         if not unfiltered:
             self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
-            return results
+            if not force_refresh:
+                self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
+            return {"creditreform_insights": {"processed": 0, "matched": 0}}
         
-        topics = list(self.topics_config['topics'].keys())
-        total_articles = len(unfiltered)
-        total_topics = len(topics)
-        total_classifications = total_articles * total_topics
+        # Get active topics (only enabled ones)
+        active_topics = {name: config for name, config in self.topics_config['topics'].items() 
+                        if config.get('enabled', True)}
         
-        self.logger.info(f"Processing {format_number(total_articles)} articles against {total_topics} topics")
-        self.logger.info(f"Total AI classifications to perform: {format_number(total_classifications)}")
-        self.logger.info(f"Using model: {self.model}")
-        self.logger.info(f"Confidence threshold: {self.confidence_threshold}")
+        if not active_topics:
+            self.logger.warning("WARNING: No enabled topics found")
+            return {}
         
-        # Process each topic
-        overall_matched = 0
-        overall_processed = 0
+        # Use only creditreform_insights if available, otherwise use first active topic
+        target_topic = "creditreform_insights" if "creditreform_insights" in active_topics else list(active_topics.keys())[0]
+        topic_config = active_topics[target_topic]
         
-        for topic_idx, topic_name in enumerate(topics, 1):
-            topic_start_time = time.time()
+        # Configuration
+        max_articles = 15 if mode == "express" else topic_config.get('max_articles_per_run', 25)
+        confidence_threshold = topic_config.get('confidence_threshold', 0.80)
+        early_terminate_at = topic_config.get('thresholds', {}).get('early_termination_at', max_articles)
+        
+        self.logger.info(f"Target topic: {target_topic}")
+        self.logger.info(f"Processing mode: {mode}")
+        self.logger.info(f"Max articles to process: {max_articles}")
+        self.logger.info(f"Confidence threshold: {confidence_threshold}")
+        self.logger.info(f"Available articles: {format_number(len(unfiltered))}")
+        
+        # Priority-based article sorting
+        self.logger.info("Calculating article priorities...")
+        for article in unfiltered:
+            article['priority_score'] = self.calculate_priority_score(article)
+        
+        # Sort by priority (highest first)
+        sorted_articles = sorted(unfiltered, key=lambda x: x['priority_score'], reverse=True)
+        
+        # Limit articles for processing (optimization)
+        if mode == "express":
+            # Express mode: process only top 50 articles maximum
+            articles_to_process = sorted_articles[:min(50, len(sorted_articles))]
+        else:
+            # Standard mode: process top 100 articles maximum
+            articles_to_process = sorted_articles[:min(100, len(sorted_articles))]
+        
+        self.logger.info(f"Processing top {len(articles_to_process)} priority articles")
+        
+        # Enhanced system prompt for Creditreform context
+        enhanced_system_prompt = self.build_creditreform_system_prompt(topic_config)
+        
+        # Smart batch processing with early termination
+        results = []
+        matched_count = 0
+        processed_count = 0
+        high_confidence_matches = 0
+        
+        for i, article in enumerate(articles_to_process, 1):
+            # Progress logging
+            if i % 5 == 0 or i == len(articles_to_process) or i == 1:
+                log_progress(self.logger, i, len(articles_to_process), f"Processing {target_topic}", "   ")
             
-            self.logger.info(f"\nTopic {topic_idx}/{total_topics}: '{topic_name}'")
+            url = article.get('url', '')
             
-            topic_config = self.topics_config['topics'].get(topic_name, {})
-            keywords = topic_config.get('include', [])
-            threshold = topic_config.get('confidence_threshold', self.confidence_threshold)
+            # Skip already processed URLs
+            if self.is_url_already_processed(url, target_topic):
+                continue
             
-            self.logger.info(f"   Keywords: {', '.join(keywords[:5])}{'...' if len(keywords) > 5 else ''}")
-            self.logger.info(f"   Threshold: {threshold}")
-            
-            # Classify all articles for this topic
-            classifications = self.batch_classify(unfiltered, topic_name)
-            
-            # Process results
-            topic_results = {
-                'processed': 0,
-                'matched': 0,
-                'avg_confidence': 0.0
-            }
-            
-            total_confidence = 0.0
-            high_confidence_matches = 0
-            
-            for article, classification in classifications:
-                # Save classification
-                self.save_classification(article['id'], topic_name, classification)
+            try:
+                # Enhanced classification with Creditreform context
+                classification = self.classify_article_enhanced(
+                    article.get('title', ''),
+                    url,
+                    target_topic,
+                    enhanced_system_prompt,
+                    article.get('priority_score', 0.0)
+                )
                 
-                topic_results['processed'] += 1
-                total_confidence += classification['confidence']
-                overall_processed += 1
+                # Save processed URL
+                result_type = 'matched' if classification['is_match'] else 'rejected'
+                self.save_processed_link(url, target_topic, result_type, classification['confidence'])
+                
+                # Save classification to database
+                self.save_classification(article['id'], target_topic, classification)
+                
+                processed_count += 1
                 
                 if classification['is_match']:
-                    topic_results['matched'] += 1
-                    overall_matched += 1
+                    matched_count += 1
+                    results.append((article, classification))
                     
                     if classification['confidence'] > 0.85:
                         high_confidence_matches += 1
+                        title = article.get('title', '')[:60] + "..." if len(article.get('title', '')) > 60 else article.get('title', '')
+                        self.logger.debug(f"   [HIGH] {title} ({classification['confidence']:.2f})")
+                    
+                    # Early termination if we have enough high-quality matches
+                    if matched_count >= early_terminate_at:
+                        self.logger.info(f"   [EARLY STOP] Found {matched_count} matches - terminating early for efficiency")
+                        break
             
-            # Calculate metrics
-            if topic_results['processed'] > 0:
-                topic_results['avg_confidence'] = total_confidence / topic_results['processed']
-            
-            results[topic_name] = topic_results
-            
-            # Topic completion summary
-            topic_duration = time.time() - topic_start_time
-            match_rate = format_rate(topic_results['matched'], topic_results['processed'])
-            
-            self.logger.info(f"   [DONE] Completed in {topic_duration:.1f}s")
-            self.logger.info(f"   [STATS] Matches: {topic_results['matched']}/{format_number(topic_results['processed'])} ({match_rate})")
-            self.logger.info(f"   [AVG] Avg confidence: {topic_results['avg_confidence']:.3f}")
-            if high_confidence_matches > 0:
-                self.logger.info(f"   [HIGH] High confidence matches: {high_confidence_matches}")
+            except Exception as e:
+                log_error_with_context(self.logger, e, f"Classification failed for article {i}")
+                self.save_processed_link(url, target_topic, 'error', 0.0)
+                processed_count += 1
         
-        # Overall completion summary
+        # Results summary
         total_duration = time.time() - start_time
-        overall_rate = format_rate(overall_matched, overall_processed)
+        match_rate = format_rate(matched_count, processed_count) if processed_count > 0 else "0%"
         
         summary_results = {
-            'total_processed': format_number(overall_processed),
-            'total_matched': format_number(overall_matched), 
-            'match_rate': overall_rate,
+            'topic': target_topic,
+            'mode': mode,
+            'processed': processed_count,
+            'matched': matched_count,
+            'high_confidence': high_confidence_matches,
+            'match_rate': match_rate,
             'duration': f"{total_duration:.1f}s",
-            'topics_processed': len(topics),
-            'avg_time_per_topic': f"{total_duration/len(topics):.1f}s"
+            'avg_confidence': sum(r[1]['confidence'] for r in results) / len(results) if results else 0.0,
+            'early_terminated': matched_count >= early_terminate_at
         }
         
-        log_step_complete(self.logger, "AI-Powered Article Filtering", total_duration, summary_results)
+        log_step_complete(self.logger, "Creditreform-Focused AI Filtering", total_duration, summary_results)
         
-        return results
+        return {target_topic: summary_results}
+
+    def build_creditreform_system_prompt(self, topic_config: Dict[str, Any]) -> str:
+        """
+        Build enhanced system prompt with Creditreform business context.
+        """
+        description = topic_config.get('description', '')
+        focus_areas = topic_config.get('focus_areas', {})
+        
+        focus_text = ""
+        for area, info in focus_areas.items():
+            keywords = info.get('keywords', [])
+            priority = info.get('priority', 'medium')
+            focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
+        
+        return f"""You are an expert Swiss financial news analyst specializing in B2B credit risk assessment.
+
+CREDITREFORM CONTEXT:
+{description}
+
+You're filtering news for a Product Manager/Data Analyst at Creditreform Switzerland who needs:
+- Actionable insights for credit risk products and services
+- Regulatory changes affecting B2B credit assessment
+- Market intelligence on competitors and industry trends
+- Swiss-specific financial and business developments
+
+KEY FOCUS AREAS:{focus_text}
+
+CLASSIFICATION CRITERIA:
+- HIGH RELEVANCE (0.85+): Direct impact on credit risk business, regulatory changes, competitor news
+- MEDIUM RELEVANCE (0.70-0.84): Industry trends, general business climate affecting B2B credit
+- LOW RELEVANCE (< 0.70): Tangential business news, consumer finance, unrelated topics
+
+Return strict JSON with:
+- is_match: boolean (true if relevant for Creditreform business)
+- confidence: number 0-1 (how relevant/actionable this is)
+- topic: "creditreform_insights"
+- reason: brief business justification (max 200 chars)
+
+Be selective - only mark articles that provide actionable business intelligence."""
+
+    def classify_article_enhanced(self, title: str, url: str, topic: str, 
+                                 system_prompt: str, priority_score: float = 0.0) -> Dict[str, Any]:
+        """
+        Enhanced classification with Creditreform business context.
+        """
+        try:
+            topic_config = self.topics_config['topics'].get(topic, {})
+            topic_threshold = topic_config.get('confidence_threshold', self.confidence_threshold)
+            
+            # Enhanced user input with priority context
+            user_input = {
+                "title": title,
+                "url": url,
+                "topic": topic,
+                "priority_score": priority_score,
+                "source_tier": "tier_1" if priority_score >= 3.0 else "tier_2" if priority_score >= 2.0 else "tier_3"
+            }
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": json.dumps(user_input)}
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "triage",
+                        "schema": self.triage_schema["schema"],
+                        "strict": True
+                    }
+                }
+            )
+            
+            response_content = response.choices[0].message.content
+            if response_content is None:
+                raise ValueError("OpenAI response content is None")
+            
+            result = json.loads(response_content)
+            
+            # Apply topic-specific threshold
+            if result.get('confidence', 0) < topic_threshold:
+                result['is_match'] = False
+                result['reason'] = f"Below confidence threshold {topic_threshold}"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in enhanced classification '{title}': {e}")
+            return {
+                "is_match": False,
+                "confidence": 0.0,
+                "topic": topic,
+                "reason": f"Classification error: {str(e)[:100]}"
+            }
+
+    def filter_all_topics(self) -> Dict[str, Dict[str, int]]:
+        """
+        LEGACY: Filter all topics (replaced by filter_for_creditreform).
+        Kept for compatibility but redirects to optimized approach.
+        """
+        self.logger.warning("filter_all_topics() is deprecated. Using optimized filter_for_creditreform() instead.")
+        return self.filter_for_creditreform("standard")
     
     def get_matched_articles(self, topic: str | None = None, limit: int = 100) -> List[Dict[str, Any]]:
         """

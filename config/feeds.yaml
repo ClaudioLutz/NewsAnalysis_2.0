@@ -18,7 +18,17 @@ html:
       title: "h2.heading.h4"
       hidden_url: "div.hiddenarticleurl"
 
-google_news_rss:
+# DISABLED: Google News RSS feeds cause redirect loop errors
+# These provide encoded redirect URLs that are not suitable for direct scraping
+# Focusing on direct RSS feeds from quality sources instead
+google_news_rss_DISABLED:
   wirtschaft:   "https://news.google.com/rss/search?q=wirtschaft&hl=de-CH&gl=CH&ceid=CH:de"
   fintech:      "https://news.google.com/rss/search?q=fintech&hl=de-CH&gl=CH&ceid=CH:de"
   schweiz:      "https://news.google.com/rss/search?q=Schweiz&hl=de-CH&gl=CH&ceid=CH:de"
+  
+# Alternative: Use direct RSS feeds from quality Swiss sources
+# These provide clean, direct article URLs that work properly with scrapers
+additional_rss:
+  handelszeitung:  ["https://www.handelszeitung.ch/rss.xml"]
+  finews:          ["https://www.finews.ch/rss"]
+  cash:            ["https://www.cash.ch/rss"]

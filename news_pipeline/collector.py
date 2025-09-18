@@ -395,11 +395,18 @@ class NewsCollector:
             all_articles.extend(articles)
             results['html'] += len(articles)
         
-        # Collect from Google News
-        if 'google_news_rss' in self.config:
-            articles = self.collect_from_google_news(self.config['google_news_rss'])
-            all_articles.extend(articles)
-            results['google_news'] += len(articles)
+        # Collect from additional RSS feeds (high-quality direct sources)
+        if 'additional_rss' in self.config:
+            for source, urls in self.config['additional_rss'].items():
+                articles = self.collect_from_rss(urls, source)
+                all_articles.extend(articles)
+                results['rss'] += len(articles)  # Count as RSS feeds
+        
+        # DISABLED: Google News collection (causes redirect loops)
+        # if 'google_news_rss' in self.config:
+        #     articles = self.collect_from_google_news(self.config['google_news_rss'])
+        #     all_articles.extend(articles)
+        #     results['google_news'] += len(articles)
         
         # Deduplicate and save
         deduplicated = self.deduplicate_articles(all_articles)

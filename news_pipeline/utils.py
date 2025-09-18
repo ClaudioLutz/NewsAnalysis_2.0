@@ -147,24 +147,79 @@ def extract_canonical_url(html: str) -> str | None:
     return None
 
 def setup_logging(level: str = "INFO") -> logging.Logger:
-    """Set up enhanced logging configuration with better formatting."""
+    """Set up enhanced logging configuration with Unicode support."""
     import sys
+    import os
     
-    # Create formatter with better format
-    formatter = logging.Formatter(
+    # Fix Windows console encoding for Unicode characters
+    if os.name == 'nt':  # Windows
+        try:
+            # Try to set console to UTF-8 mode for Python 3.7+
+            if hasattr(sys.stdout, 'reconfigure') and hasattr(sys.stderr, 'reconfigure'):
+                # Use getattr to avoid type checking issues
+                stdout_reconfigure = getattr(sys.stdout, 'reconfigure', None)
+                stderr_reconfigure = getattr(sys.stderr, 'reconfigure', None)
+                if stdout_reconfigure and stderr_reconfigure:
+                    stdout_reconfigure(encoding='utf-8', errors='replace')
+                    stderr_reconfigure(encoding='utf-8', errors='replace')
+            else:
+                # For older Python versions, set environment variable
+                os.environ['PYTHONIOENCODING'] = 'utf-8:replace'
+        except (AttributeError, LookupError, TypeError):
+            # Fallback - just continue without UTF-8 reconfiguration
+            pass
+    
+    # Create formatter that handles Unicode safely
+    class UnicodeFormatter(logging.Formatter):
+        def format(self, record):
+            try:
+                formatted = super().format(record)
+                # Replace problematic Unicode characters on Windows
+                if os.name == 'nt':
+                    # Replace emojis with text equivalents
+                    emoji_replacements = {
+                        '💭': '[THINKING]',
+                        '🔧': '[TOOL]', 
+                        '📄': '[RESULT]',
+                        '👣': '[STEP]',
+                        '💬': '[QUERY]',
+                        '🏁': '[START]',
+                        '🎯': '[TARGET]',
+                        '⚡': '[EXPRESS]',
+                        '🐌': '[SLOW]',
+                        '📊': '[STATS]',
+                        '📈': '[SUMMARY]',
+                        '🔍': '[SEARCH]',
+                        '📝': '[MARKED]',
+                        '🚀': '[EXPRESS MODE]',
+                        '🕐': '[STANDARD]',
+                        '📰': '[ARTICLES]',
+                        '🔄': '[RESUME]'
+                    }
+                    for emoji, replacement in emoji_replacements.items():
+                        formatted = formatted.replace(emoji, replacement)
+                return formatted
+            except UnicodeEncodeError:
+                # If all else fails, encode with error replacement
+                return record.getMessage().encode('ascii', errors='replace').decode('ascii')
+    
+    # Create formatters
+    console_formatter = UnicodeFormatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%H:%M:%S'
     )
     
-    # Console handler with custom formatter
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    
-    # File handler
-    file_handler = logging.FileHandler('news_pipeline.log', mode='a')
-    file_handler.setFormatter(logging.Formatter(
+    file_formatter = UnicodeFormatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    )
+    
+    # Console handler with Unicode-safe formatter
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    
+    # File handler with UTF-8 encoding
+    file_handler = logging.FileHandler('news_pipeline.log', mode='a', encoding='utf-8')
+    file_handler.setFormatter(file_formatter)
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -175,9 +230,13 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
     
-    # Reduce noise from httpx
+    # Reduce noise from external libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("trafilatura").setLevel(logging.WARNING)
+    
+    # Set MCP logging to WARNING to reduce emoji noise
+    logging.getLogger("mcp_use").setLevel(logging.WARNING)
     
     return logging.getLogger(__name__)
 

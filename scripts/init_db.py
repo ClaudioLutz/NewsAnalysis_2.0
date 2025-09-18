@@ -79,7 +79,33 @@ def init_database():
         confidence REAL DEFAULT 0.0
     );
 
-    -- Pipeline run state management to prevent duplicate execution
+    -- ENHANCED: Pipeline State Tracking (Phase 1 & 5)
+    CREATE TABLE IF NOT EXISTS pipeline_state (
+        id INTEGER PRIMARY KEY,
+        run_id TEXT UNIQUE NOT NULL,  -- UUID for each pipeline run
+        step_name TEXT NOT NULL CHECK(step_name IN ('collection', 'filtering', 'scraping', 'summarization', 'analysis')),
+        status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'paused')) DEFAULT 'pending',
+        started_at TEXT DEFAULT (datetime('now')),
+        completed_at TEXT,
+        metadata TEXT,  -- JSON for step-specific data
+        article_count INTEGER DEFAULT 0,
+        match_count INTEGER DEFAULT 0,
+        error_message TEXT,
+        can_resume INTEGER DEFAULT 1
+    );
+
+    -- ENHANCED: Article Clustering for Deduplication (Phase 4)
+    CREATE TABLE IF NOT EXISTS article_clusters (
+        id INTEGER PRIMARY KEY,
+        cluster_id TEXT NOT NULL,  -- Generated hash for similar articles
+        article_id INTEGER REFERENCES items(id) ON DELETE CASCADE,
+        is_primary INTEGER DEFAULT 0,  -- Best article in cluster
+        similarity_score REAL DEFAULT 0.0,
+        created_at TEXT DEFAULT (datetime('now')),
+        clustering_method TEXT DEFAULT 'title_similarity'
+    );
+
+    -- Legacy pipeline_runs table (keeping for compatibility)
     CREATE TABLE IF NOT EXISTS pipeline_runs (
         id INTEGER PRIMARY KEY,
         started_at TEXT DEFAULT (datetime('now')),
@@ -92,6 +118,13 @@ def init_database():
     CREATE INDEX IF NOT EXISTS idx_processed_links_topic ON processed_links(topic);
     CREATE INDEX IF NOT EXISTS idx_processed_links_result ON processed_links(result);
     CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
+    
+    -- NEW: Enhanced indexing for optimization
+    CREATE INDEX IF NOT EXISTS idx_pipeline_state_run_id ON pipeline_state(run_id);
+    CREATE INDEX IF NOT EXISTS idx_pipeline_state_status ON pipeline_state(status);
+    CREATE INDEX IF NOT EXISTS idx_pipeline_state_step ON pipeline_state(step_name);
+    CREATE INDEX IF NOT EXISTS idx_article_clusters_cluster_id ON article_clusters(cluster_id);
+    CREATE INDEX IF NOT EXISTS idx_article_clusters_primary ON article_clusters(is_primary);
     """)
     
     conn.commit()

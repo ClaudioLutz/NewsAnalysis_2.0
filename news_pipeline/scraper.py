@@ -92,7 +92,7 @@ class ContentScraper:
     
     async def scrape_with_mcp(self, url: str) -> Optional[str]:
         """
-        Extract content using MCP + Playwright.
+        Extract content using MCP + Playwright with fresh browser session.
         
         Args:
             url: Article URL to scrape
@@ -106,14 +106,17 @@ class ContentScraper:
         try:
             self.logger.debug(f"Extracting with MCP Playwright: {url}")
             
-            # Create prompt for MCP agent
-            prompt = f"""Navigate to the URL: {url}
+            # CRITICAL FIX: Create fresh browser session for each article
+            # Close any existing browser and start fresh to avoid session conflicts
+            prompt = f"""First, if a browser is already open, close it.
+Then open a new browser and navigate to: {url}
 
 Extract the main article content from the page. Focus on:
-1. Main article text/body content
+1. Main article text/body content  
 2. Skip navigation, ads, comments, related articles
 3. Return only the readable article text
 4. If the page requires clicking "Accept cookies" or similar, do that first
+5. After extraction, close the browser to free resources
 
 Return the extracted text as plain text without any formatting or metadata."""
             
@@ -132,46 +135,25 @@ Return the extracted text as plain text without any formatting or metadata."""
     def resolve_google_news_url(self, url: str) -> Optional[str]:
         """
         Resolve Google News redirect URLs to actual article URLs.
+        CRITICAL FIX: Skip problematic Google News URLs that cause redirect loops.
         
         Args:
             url: Potentially redirected Google News URL
             
         Returns:
-            Direct article URL or resolved URL
+            Direct article URL or None if should be skipped
         """
         if "news.google.com/rss/articles/" not in url:
             return url
-            
-        # Try to follow Google News redirects
-        try:
-            import requests
-            
-            # Try to follow redirects to get the actual URL
-            self.logger.debug(f"Attempting to resolve Google News redirect: {url}")
-            
-            response = requests.head(url, allow_redirects=True, timeout=10)
-            resolved_url = response.url
-            
-            # Check if we got a different URL
-            if resolved_url != url and "google.com" not in resolved_url:
-                self.logger.info(f"Resolved Google News URL: {url} -> {resolved_url}")
-                return resolved_url
-            else:
-                # Fallback: try with requests.get to handle JavaScript redirects
-                response = requests.get(url, timeout=10, allow_redirects=True)
-                if response.url != url and "google.com" not in response.url:
-                    self.logger.info(f"Resolved Google News URL via GET: {url} -> {response.url}")
-                    return response.url
-                
-                # If still a Google URL, try to use the original URL anyway
-                # Trafilatura and MCP might be able to handle it
-                self.logger.warning(f"Could not resolve Google News redirect, using original: {url}")
-                return url
-                
-        except Exception as e:
-            self.logger.warning(f"Error resolving Google News URL {url}: {e}")
-            # Don't skip entirely, try to use the original URL
-            return url
+        
+        # CRITICAL FIX: Skip Google News redirect URLs entirely
+        # These encoded URLs cause redirect loops and are not meant for direct scraping
+        self.logger.warning(f"Skipping Google News redirect URL (causes redirect loops): {url[:100]}...")
+        return None
+        
+        # Alternative approach would be to try decoding the URL, but it's complex and unreliable
+        # Google News URLs are base64 encoded and often change format
+        # Better to focus on direct article URLs from RSS feeds
     
     def extract_content(self, url: str) -> tuple[Optional[str], str]:
         """
@@ -241,6 +223,9 @@ Return the extracted text as plain text without any formatting or metadata."""
             })
         
         conn.close()
+        
+        # Log what we found for debugging
+        self.logger.debug(f"Found {len(articles)} articles that need scraping")
         return articles
     
     def save_extracted_content(self, item_id: int, extracted_text: str, method: str) -> bool:
@@ -290,8 +275,13 @@ Return the extracted text as plain text without any formatting or metadata."""
         
         self.logger.info(f"Scraping content from {len(articles)} articles")
         
-        for article in articles:
-            self.logger.info(f"Scraping: {article['title'][:100]}...")
+        for i, article in enumerate(articles, 1):
+            self.logger.info(f"Scraping {i}/{len(articles)}: {article['title'][:100]}...")
+            
+            # CRITICAL FIX: Reinitialize MCP agent every 3 articles to prevent browser session issues
+            if i % 3 == 1 and self.mcp_client:  # Reinitialize on articles 1, 4, 7, etc.
+                self.logger.debug(f"Reinitializing MCP agent for fresh browser session (article {i})")
+                self._init_mcp()
             
             # Extract content
             extracted_text, method = self.extract_content(article['url'])
@@ -311,6 +301,11 @@ Return the extracted text as plain text without any formatting or metadata."""
                     self.logger.debug(f"Extracted {len(extracted_text)} chars using {method}")
             else:
                 results['failed'] += 1
+                
+                # If MCP fails repeatedly, try reinitializing
+                if method == "failed" and self.mcp_client and i < len(articles):
+                    self.logger.warning(f"MCP failed for article {i}, reinitializing for next attempt")
+                    self._init_mcp()
         
         self.logger.info(f"Scraping complete: {results}")
         return results

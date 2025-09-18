@@ -1,13 +1,110 @@
 topics:
+  # Legacy topics (disabled for optimization)
   schweizer_wirtschaft:
+    enabled: false
     include: ["Schweiz", "Wirtschaft", "Unternehmen", "Finanz", "Bank", "Versicherung"]
     confidence_threshold: 0.70
     
   fintech:
+    enabled: false
     include: ["Fintech", "Krypto", "Zahlung", "Digitale Bank", "Neobank"]
     confidence_threshold: 0.75
 
+  # NEW: Optimized Creditreform-focused topic (Phase 2)
+  creditreform_insights:
+    enabled: true
+    description: >
+      Articles directly relevant to Creditreform's B2B credit risk, rating, and data business in Switzerland.
+      Optimized for Product Manager/Data Analyst role with aggressive filtering for actionable insights only.
+    
+    # Aggressive confidence threshold for quality over quantity
+    confidence_threshold: 0.80
+    max_articles_per_run: 15
+    
+    # Priority sources (government and financial authorities first)
+    priority_sources:
+      tier_1: ["admin.ch", "finma.ch", "snb.ch", "seco.admin.ch", "bfs.admin.ch"]
+      tier_2: ["handelszeitung.ch", "finews.ch", "fuw.ch", "cash.ch"]
+      tier_3: ["nzz.ch", "srf.ch"]
+    
+    # Core focus areas with specific keywords
+    focus_areas:
+      credit_risk:
+        keywords: ["Bonität", "Bonitätsprüfung", "Firmenrating", "Kreditscoring", "Rating", "Score", "Kreditrisiko"]
+        priority: "high"
+      
+      insolvency_bankruptcy:
+        keywords: ["Konkurs", "Insolvenz", "Betreibung", "SchKG", "Firmenpleite", "Zahlungsunfähigkeit"]
+        priority: "high"
+      
+      regulatory_compliance:
+        keywords: ["Basel III", "Swiss finish", "FINMA", "RWA", "Standardansatz", "nDSG", "Datenschutz"]
+        priority: "high"
+      
+      payment_behavior:
+        keywords: ["Zahlungsmoral", "Zahlungsverzug", "Zahlungsfristen", "Debitoren", "B2B Zahlungen"]
+        priority: "medium"
+      
+      market_intelligence:
+        keywords: ["Kreditversicherung", "Trade Credit Insurance", "Warenkreditversicherung", "KMU Finanzierung"]
+        priority: "medium"
+    
+    # Flattened keywords for current system compatibility
+    include: [
+      # Credit risk & ratings
+      "Bonität", "Bonitätsprüfung", "Bonitätsauskunft", "Firmenrating", "Ratingagentur", 
+      "Score", "Scoring", "Kreditscoring", "Kreditrisiko", "Ausfallrisiko",
+      
+      # Insolvency & bankruptcy
+      "Konkurs", "Insolvenz", "Betreibung", "SchKG", "Firmenpleite", "Zahlungsunfähigkeit",
+      "Liquidation", "Sanierung", "Restrukturierung",
+      
+      # Regulatory & compliance
+      "Basel III", "Basel-III-Finalisierung", "Swiss finish", "FINMA", "RWA", "Standardansatz",
+      "nDSG", "Datenschutzgesetz", "DSGVO", "Compliance", "Regulierung",
+      
+      # Payment behavior
+      "Zahlungsmoral", "Zahlungsverzug", "Zahlungsfristen", "Debitoren", "Forderungsmanagement",
+      "B2B Zahlungen", "Zahlungsverhalten", "Inkasso",
+      
+      # Market intelligence
+      "Kreditversicherung", "Trade Credit Insurance", "Warenkreditversicherung",
+      "KMU Finanzierung", "Unternehmenskredit", "Firmenkredit"
+    ]
+    
+    # Named entities for high relevance
+    named_entities_anchor:
+      - ["FINMA", "Eidgenössische Finanzmarktaufsicht"]
+      - ["SNB", "Schweizerische Nationalbank"]
+      - ["SECO", "Staatssekretariat für Wirtschaft"]
+      - ["BFS", "Bundesamt für Statistik"]
+      - ["Creditreform", "CrediWeb"]
+      - ["Basel Committee", "BCBS"]
+      - ["Intrum", "Dun & Bradstreet", "Coface", "Atradius", "Allianz Trade"]
+    
+    # Strong exclusions for irrelevant content
+    exclude_keywords:
+      - ["Privatkredit", "Konsumkredit", "Hypothek", "Kreditkarte"]
+      - ["Sport", "Entertainment", "Lifestyle", "Kultur", "Politik"]
+      - ["Rabatt", "Angebot", "Promotion", "Werbung", "Marketing"]
+      - ["Filiale", "Öffnungszeit", "Standort", "Personal"]
+    
+    # Time-based collection limits (optimize article volume)
+    collection_limits:
+      tier_1_days: 7  # Government sources: 1 week
+      tier_2_days: 3  # Financial news: 3 days
+      tier_3_days: 1  # General news: 1 day only
+    
+    # Enhanced thresholds for quality control
+    thresholds:
+      title_url_gate_min_confidence: 0.80
+      keep_if_entity_anchor_hit: true
+      drop_if_exclude_keyword: true
+      early_termination_at: 15  # Stop when 15 high-quality matches found
+
+  # Legacy topic (kept for reference, disabled)
   bonitaet_b2b_ch:
+    enabled: false
     description: >
       Bonität & Unternehmens-Kreditrisiko in der Schweiz (B2B).
       Fokus: Firmenratings/-scores, B2B-Zahlungsmoral, Konkurs-/Betreibungsstatistik,
