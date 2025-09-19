@@ -201,6 +201,13 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                     topic
                 )
                 
+                # Log each article's classification result
+                self.logger.info(
+                    f"Title: {article.get('title', '')} | URL: {url} | "
+                    f"Decision: {'MATCH' if classification['is_match'] else 'NO MATCH'} "
+                    f"(confidence {classification['confidence']:.2f})"
+                )
+                
                 # Save processed URL to prevent re-processing
                 result_type = 'matched' if classification['is_match'] else 'rejected'
                 self.save_processed_link(url, topic, result_type, classification['confidence'])
@@ -446,6 +453,13 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                     target_topic,
                     enhanced_system_prompt,
                     article.get('priority_score', 0.0)
+                )
+                
+                # Log each article's classification result
+                self.logger.info(
+                    f"Title: {article.get('title', '')} | URL: {url} | "
+                    f"Decision: {'MATCH' if classification['is_match'] else 'NO MATCH'} "
+                    f"(confidence {classification['confidence']:.2f})"
                 )
                 
                 # Save processed URL
