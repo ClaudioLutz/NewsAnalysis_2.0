@@ -42,25 +42,25 @@ venv.bak/
 .venv/
 
 # Database files
-*.db
+#*.db
 *.db-wal
 *.db-shm
 *.sqlite
 *.sqlite3
-news.db*
+#news.db*
 
 # Data and output directories
 data/
-out/
-logs/
-*.log
+#out/
+#logs/
+#*.log
 *.log.*
 
 # MCP and Playwright
 .playwright/
 playwright-report/
 test-results/
-node_modules/
+#node_modules/
 #package-lock.json
 yarn.lock
 
