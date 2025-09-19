@@ -250,6 +250,110 @@ class NewsCollector:
                 self.logger.error(f"Error fetching HTML listing {source}: {e}")
         
         return articles
+
+    def _get_nested_value(self, obj: Any, path: str) -> Optional[Any]:
+        """
+        Resolve dotted path with optional list indices, e.g., 'a.b[0].c'.
+        Returns None if any segment is missing.
+        """
+        try:
+            cur = obj
+            # Support empty path -> whole object
+            if not path:
+                return cur
+            parts = path.split('.')
+            for part in parts:
+                # Handle array indices like 'arr[0]'
+                while '[' in part and ']' in part:
+                    key, rest = part.split('[', 1)
+                    idx_str, maybe_rest = rest.split(']', 1)
+                    if key:
+                        if isinstance(cur, dict):
+                            cur = cur.get(key)
+                        else:
+                            return None
+                    if not isinstance(cur, (list, tuple)):
+                        return None
+                    idx = int(idx_str)
+                    if idx < 0 or idx >= len(cur):
+                        return None
+                    cur = cur[idx]
+                    # If there is trailing nested access like '][1].field'
+                    part = maybe_rest[1:] if maybe_rest.startswith('.') else maybe_rest
+                    if not part:
+                        break
+                if part:
+                    if isinstance(cur, dict):
+                        cur = cur.get(part)
+                    else:
+                        return None
+            return cur
+        except Exception:
+            return None
+
+    def collect_from_json_apis(self, json_configs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Collect articles from JSON APIs as configured in config['json'].
+
+        Expected config per source:
+          json:
+            shab:
+              url: "https://example/api"
+              item_path: "items"            # dotted path to list of items
+              fields:
+                url: "link"                # relative to each item
+                title: "title"
+                published_at: "date"       # ISO8601 or parseable string
+        """
+        articles = []
+        for source, cfg in json_configs.items():
+            try:
+                url = cfg['url']
+                if not is_allowed_by_robots(url, self.user_agent, self.respect_robots):
+                    self.logger.warning(f"Robots.txt disallows {url}")
+                    continue
+
+                self.logger.info(f"Fetching JSON API: {url}")
+
+                resp = self.session.get(url, timeout=self.request_timeout, headers={'Accept': 'application/json'})
+                resp.raise_for_status()
+                data = resp.json()
+
+                items_path = cfg.get('item_path', 'items')
+                items = self._get_nested_value(data, items_path)
+                if not isinstance(items, list):
+                    # If top-level is already a list, use it
+                    items = data if isinstance(data, list) else []
+
+                fields = cfg.get('fields', {})
+                url_field = fields.get('url', 'url')
+                title_field = fields.get('title', 'title')
+                published_field = fields.get('published_at', 'published_at')
+
+                for item in items[:self.max_items_per_feed]:
+                    article_url = self._get_nested_value(item, url_field)
+                    title = self._get_nested_value(item, title_field)
+                    published_val = self._get_nested_value(item, published_field)
+
+                    if not article_url or not title:
+                        continue
+
+                    published_at = parse_date(str(published_val)) if published_val else None
+
+                    article = {
+                        'url': str(article_url),
+                        'title': str(title).strip(),
+                        'source': source,
+                        'published_at': published_at,
+                        'aggregator_url': url,
+                        'discovered_at': datetime.now().isoformat()
+                    }
+                    articles.append(article)
+
+            except Exception as e:
+                self.logger.error(f"Error fetching JSON API {source}: {e}")
+
+        return articles
     
     def collect_from_google_news(self, queries: Dict[str, str]) -> List[Dict[str, Any]]:
         """Collect articles from Google News RSS feeds."""
@@ -381,7 +485,7 @@ class NewsCollector:
     
     def collect_all(self) -> Dict[str, int]:
         """Collect articles from all configured sources."""
-        results = {'rss': 0, 'sitemaps': 0, 'html': 0, 'google_news': 0}
+        results = {'rss': 0, 'sitemaps': 0, 'html': 0, 'json': 0, 'google_news': 0}
         all_articles = []
         
         # Collect from RSS feeds
@@ -403,6 +507,12 @@ class NewsCollector:
             articles = self.collect_from_html_listings(self.config['html'])
             all_articles.extend(articles)
             results['html'] += len(articles)
+
+        # Collect from JSON APIs (e.g., SHAB)
+        if 'json' in self.config:
+            articles = self.collect_from_json_apis(self.config['json'])
+            all_articles.extend(articles)
+            results['json'] += len(articles)
         
         # Collect from additional RSS feeds (high-quality direct sources)
         if 'additional_rss' in self.config:

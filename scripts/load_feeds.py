@@ -60,6 +60,15 @@ def load_feeds_from_config(config_path="config/feeds.yaml"):
                 "INSERT OR REPLACE INTO feeds (source, kind, url) VALUES (?, ?, ?)",
                 (f"google_news_{source}", 'rss', url)
             )
+
+    # Load additional high-quality RSS feeds
+    if 'additional_rss' in config:
+        for source, urls in config['additional_rss'].items():
+            for url in urls:
+                conn.execute(
+                    "INSERT OR REPLACE INTO feeds (source, kind, url) VALUES (?, ?, ?)",
+                    (source, 'rss', url)
+                )
     
     conn.commit()
     

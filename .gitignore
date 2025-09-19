@@ -177,6 +177,20 @@ celerybeat.pid
 # FastAPI
 .fastapi/
 
+# Windows reserved device names (prevent Git errors)
+CON
+PRN
+AUX
+NUL
+nul
+con
+prn
+aux
+COM[1-9]
+com[1-9]
+LPT[1-9]
+lpt[1-9]
+
 # Keep these files/directories
 !.env.example
 !fixtures/sample_feeds/.gitkeep

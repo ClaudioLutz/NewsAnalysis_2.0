@@ -29,6 +29,10 @@ google_news_rss_DISABLED:
 # Alternative: Use direct RSS feeds from quality Swiss sources
 # These provide clean, direct article URLs that work properly with scrapers
 additional_rss:
-  handelszeitung:  ["https://www.handelszeitung.ch/rss.xml"]
-  finews:          ["https://www.finews.ch/rss"]
-  cash:            ["https://www.cash.ch/rss"]
+  handelszeitung:   ["https://www.handelszeitung.ch/rss.xml"]
+  finews:           ["https://www.finews.ch/rss"]
+  cash:             ["https://www.cash.ch/rss"]
+  finma_news:       ["https://www.finma.ch/en/rss/news/"]
+  finma_sanctions:  ["https://www.finma.ch/en/rss/sanktionen/"]
+  startupticker:    ["https://www.startupticker.ch/feed/"]
+  fintechnews_ch:   ["https://fintechnews.ch/feed/"]

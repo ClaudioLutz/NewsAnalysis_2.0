@@ -1,5 +1,34 @@
 # News Analysis Scraping Fixes - Research-Backed Implementation
 
+## Update 2025-09-19 – Debugging the Google News Scraper Issue
+
+Root cause:
+- Google News RSS redirect decoding returned invalid identity endpoints (e.g., https://www.gstatic.com/_/boq-identity/_/r/), causing 404s
+- Every article routed through this decoder failed; MCP agent also errored (“Connection closed”) on these bad URLs
+- Invalid default model (“gpt-5-mini”) could also break MCP initialization
+- Failures were counted against the success rate; skips were not separated from true extraction failures
+
+Fixes implemented:
+- Skip-by-default for Google News redirect URLs behind a feature flag:
+  - Env: SKIP_GNEWS_REDIRECTS=true (default)
+  - Code: news_pipeline/scraper.py returns None and method "skipped_redirect" for URLs matching news.google.com/rss/articles/*
+  - Results now track "skipped_redirect" separately from "failed"
+- Decoder hardening:
+  - Reject gstatic.com and “boq-identity” identity endpoints (also blocks “kidsmanagement/management-pa”)
+- MCP/OpenAI configuration:
+  - Default MODEL_MINI updated to gpt-3.5-turbo
+  - .env.example updated accordingly
+- Documentation: This section documents the debugging outcome and the operational changes
+
+How to re-enable Google News decoding (advanced/experimental):
+- Set SKIP_GNEWS_REDIRECTS=false in .env to allow attempting the decoder (may still fail due to Google changes)
+- Be aware of fragility and potential rate-limiting/cookie consent issues; prefer direct publisher feeds
+
+Expected outcomes:
+- No more redirect-loop failures from Google News links
+- Success rate no longer stuck at 0% solely due to Google News redirects
+- Cleaner logs without repeated gstatic/boq-identity 404s
+
 ## Problem Analysis
 Your previous run showed a **0% success rate** with these critical issues:
 - Google News redirect loops causing `redirect URL (causes redirect loops)` errors  

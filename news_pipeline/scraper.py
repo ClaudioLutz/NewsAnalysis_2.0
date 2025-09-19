@@ -16,6 +16,7 @@ from urllib.parse import urlparse, parse_qs
 import trafilatura
 from mcp_use import MCPClient, MCPAgent
 from langchain_openai import ChatOpenAI
+from .google_news_decoder import GoogleNewsDecoder
 
 
 class ContentScraper:
@@ -28,6 +29,9 @@ class ContentScraper:
         
         self.logger = logging.getLogger(__name__)
         
+        # Initialize Google News decoder
+        self.google_decoder = GoogleNewsDecoder(request_timeout=self.request_timeout)
+        
         # Initialize MCP client
         self.mcp_client = None
         self.mcp_agent = None
@@ -39,7 +43,7 @@ class ContentScraper:
             self.mcp_client = MCPClient.from_config_file(self.mcp_config_path)
             
             llm = ChatOpenAI(
-                model=os.getenv("MODEL_MINI", "gpt-5-mini"),
+                model=os.getenv("MODEL_MINI", "gpt-3.5-turbo"),
                 temperature=0
             )
             
@@ -186,25 +190,50 @@ Return the extracted text as plain text without any formatting or metadata."""
     def resolve_google_news_url(self, url: str) -> Optional[str]:
         """
         Resolve Google News redirect URLs to actual article URLs.
-        CRITICAL FIX: Skip problematic Google News URLs that cause redirect loops.
+        Uses comprehensive decoding methods as documented in research.
         
         Args:
             url: Potentially redirected Google News URL
             
         Returns:
-            Direct article URL or None if should be skipped
+            Direct article URL or None if decoding failed
         """
         if "news.google.com/rss/articles/" not in url:
             return url
+
+        # Feature flag: skip Google News redirects by default (due to frequent failures and policy changes)
+        skip_gnews = os.getenv("SKIP_GNEWS_REDIRECTS", "true").lower() in ("1", "true", "yes", "on")
+        if skip_gnews:
+            self.logger.warning(f"Skipping Google News redirect URL (causes redirect loops): {url[:100]}...")
+            return None
+
+        self.logger.info(f"Attempting to decode Google News redirect: {url[:100]}...")
         
-        # CRITICAL FIX: Skip Google News redirect URLs entirely
-        # These encoded URLs cause redirect loops and are not meant for direct scraping
-        self.logger.warning(f"Skipping Google News redirect URL (causes redirect loops): {url[:100]}...")
+        # Try to decode using our comprehensive decoder
+        decoded_url = self.google_decoder.decode_url(url)
+        
+        if decoded_url:
+            self.logger.info(f"Successfully decoded Google News URL: {decoded_url}")
+            return decoded_url
+        
+        # If standard methods fail, try browser fallback as last resort
+        if self.mcp_agent:
+            try:
+                decoded_url = asyncio.run(
+                    asyncio.wait_for(
+                        self.google_decoder.decode_with_browser(url, self.mcp_agent),
+                        timeout=30.0
+                    )
+                )
+                if decoded_url:
+                    self.logger.info(f"Browser fallback successfully decoded: {decoded_url}")
+                    return decoded_url
+            except (asyncio.TimeoutError, Exception) as e:
+                self.logger.warning(f"Browser fallback failed: {e}")
+        
+        # All decoding methods failed
+        self.logger.warning(f"Failed to decode Google News URL, skipping: {url[:100]}...")
         return None
-        
-        # Alternative approach would be to try decoding the URL, but it's complex and unreliable
-        # Google News URLs are base64 encoded and often change format
-        # Better to focus on direct article URLs from RSS feeds
     
     def extract_content(self, url: str) -> tuple[Optional[str], str]:
         """
@@ -253,15 +282,28 @@ Return the extracted text as plain text without any formatting or metadata."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
-        cursor = conn.execute("""
+        # Build query, optionally excluding Google News redirects when skip flag is enabled
+        skip_gnews = os.getenv("SKIP_GNEWS_REDIRECTS", "true").lower() in ("1", "true", "yes", "on")
+        base_query = """
             SELECT i.id, i.url, i.title, i.source, i.triage_topic
             FROM items i
             LEFT JOIN articles a ON i.id = a.item_id
-            WHERE i.is_match = 1 
-            AND a.item_id IS NULL
+            WHERE i.is_match = 1
+              AND a.item_id IS NULL
+        """
+        params: list[Any] = []
+        if skip_gnews:
+            # Exclude Google News redirect URLs to allow non-GNews items to fill the batch
+            base_query += " AND i.url NOT LIKE ?"
+            params.append("%news.google.com/rss/articles/%")
+
+        base_query += """
             ORDER BY i.triage_confidence DESC, i.first_seen_at DESC
             LIMIT ?
-        """, (limit,))
+        """
+        params.append(limit)
+
+        cursor = conn.execute(base_query, tuple(params))
         
         articles = []
         for row in cursor.fetchall():
@@ -315,7 +357,8 @@ Return the extracted text as plain text without any formatting or metadata."""
             'trafilatura': 0,
             'playwright': 0,
             'failed': 0,
-            'too_short': 0
+            'too_short': 0,
+            'skipped_redirect': 0
         }
         
         # Get articles to scrape
@@ -351,6 +394,10 @@ Return the extracted text as plain text without any formatting or metadata."""
                     results[method] += 1
                     self.logger.debug(f"Extracted {len(extracted_text)} chars using {method}")
             else:
+                if method == "skipped_redirect":
+                    results['skipped_redirect'] += 1
+                    continue
+
                 results['failed'] += 1
                 
                 # If MCP fails repeatedly, try reinitializing
