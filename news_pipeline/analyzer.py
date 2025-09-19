@@ -51,8 +51,10 @@ class MetaAnalyzer:
                    s.summary, s.key_points_json, s.entities_json
             FROM items i
             JOIN summaries s ON i.id = s.item_id
+            LEFT JOIN article_clusters ac ON i.id = ac.article_id
             WHERE s.topic = ? 
             AND (i.published_at >= ? OR s.created_at >= ?)
+            AND (ac.is_primary = 1 OR ac.article_id IS NULL)
             ORDER BY i.triage_confidence DESC, s.created_at DESC
             LIMIT ?
         """, (topic, cutoff_date, cutoff_date, limit))
@@ -413,7 +415,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
     
     def export_daily_digest(self, output_path: str | None = None, format: str = "json") -> str:
         """
-        Export daily digest to file.
+        Export daily digest to file. If file exists for today, update with accumulated data.
         
         Args:
             output_path: Output file path
@@ -422,24 +424,6 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
         Returns:
             Path to exported file
         """
-        # Generate daily digests
-        digests = self.generate_daily_digests()
-        
-        # Create executive summary
-        executive = self.create_executive_summary(digests)
-        
-        # Get trending topics
-        trending = self.identify_trending_topics(days=7)
-        
-        # Combine all data
-        export_data = {
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'generated_at': datetime.now().isoformat(),
-            'executive_summary': executive,
-            'trending_topics': trending,
-            'topic_digests': digests
-        }
-        
         # Determine output path
         if output_path is None:
             date_str = datetime.now().strftime('%Y-%m-%d')
@@ -450,6 +434,47 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
         
+        # Check if file exists for today and preserve original creation time
+        original_created_at = None
+        if os.path.exists(output_path) and format == "json":
+            try:
+                with open(output_path, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+                    # Preserve the original creation time from first run
+                    if 'created_at' in existing_data:
+                        original_created_at = existing_data['created_at']
+                    elif 'generated_at' in existing_data:
+                        original_created_at = existing_data['generated_at']
+                self.logger.info(f"Updating existing digest for today (originally created: {original_created_at})")
+            except Exception as e:
+                self.logger.warning(f"Could not read existing digest file: {e}, creating new one")
+                original_created_at = None
+        
+        # Generate fresh daily digests with ALL of today's data
+        digests = self.generate_daily_digests()
+        
+        # Create executive summary
+        executive = self.create_executive_summary(digests)
+        
+        # Get trending topics
+        trending = self.identify_trending_topics(days=7)
+        
+        # Combine all data with proper timestamps
+        current_time = datetime.now().isoformat()
+        export_data = {
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'created_at': original_created_at or current_time,  # Preserve original creation time
+            'generated_at': current_time,  # Always update this to current time
+            'executive_summary': executive,
+            'trending_topics': trending,
+            'topic_digests': digests
+        }
+        
+        # Add update indicator if this is an update
+        if original_created_at:
+            export_data['updated'] = True
+            export_data['last_updated'] = current_time
+        
         if format == "json":
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(export_data, f, indent=2, ensure_ascii=False)
@@ -458,7 +483,8 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
             with open(output_path, 'w', encoding='utf-8') as f:
                 self._write_markdown_digest(f, export_data)
         
-        self.logger.info(f"Exported daily digest to {output_path}")
+        action = "Updated" if original_created_at else "Created"
+        self.logger.info(f"{action} daily digest: {output_path}")
         return output_path
     
     def _write_markdown_digest(self, file, data: Dict[str, Any]):
