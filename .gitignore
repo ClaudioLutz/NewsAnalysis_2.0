@@ -61,7 +61,7 @@ logs/
 playwright-report/
 test-results/
 node_modules/
-package-lock.json
+#package-lock.json
 yarn.lock
 
 # IDE and editor files
