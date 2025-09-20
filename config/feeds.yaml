@@ -1,13 +1,51 @@
 rss:
+  # already good
   blick:               ["https://www.blick.ch/rss.xml"]
-  luzerner_zeitung:    ["https://www.luzernerzeitung.ch/arc/outboundfeeds/rss/"]
-  st_galler_tagblatt:  ["https://www.tagblatt.ch/arc/outboundfeeds/rss/"]
-  aargauer_zeitung:    ["https://www.aargauerzeitung.ch/arc/outboundfeeds/rss/"]
-  inside_paradeplatz:  ["https://insideparadeplatz.ch/feed/"]
   nzz:                 ["https://www.nzz.ch/recent.rss","https://www.nzz.ch/wirtschaft.rss","https://www.nzz.ch/schweiz.rss"]
 
+  # Tamedia titles → use the official partner feeds (fixes your Tages-Anzeiger/BAZ/BZ/Der Bund errors)
+  tages_anzeiger:      ["https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/front",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/schweiz",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/ticker"]  # latest
+  bazonline:           ["https://partner-feeds.publishing.tamedia.ch/rss/bazonline/"]
+  berner_zeitung:      ["https://partner-feeds.publishing.tamedia.ch/rss/bernerzeitung/",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/bernerzeitung/kanton-bern",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/bernerzeitung/newsletter-uebersicht"]
+  der_bund:            ["https://partner-feeds.publishing.tamedia.ch/rss/derbund/",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/derbund/schweiz",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/derbund/wirtschaft",
+                        "https://partner-feeds.publishing.tamedia.ch/rss/derbund/ticker"]
+  tribune_de_geneve:   ["https://partner-feeds.publishing.tamedia.ch/rss/tdg/front"]
+  24heures:            ["https://partner-feeds.publishing.tamedia.ch/rss/24heures/front"]
+
+  # SRF (pick the sections you want)
+  srf_news:            ["https://www.srf.ch/news/bnf/rss/1646",    # Das Neueste
+                        "https://www.srf.ch/news/bnf/rss/1890",    # Schweiz
+                        "https://www.srf.ch/news/bnf/rss/1926"]    # Wirtschaft
+
+  # SWI swissinfo (multi-lang)
+  swissinfo:           ["https://cdn.prod.swi-services.ch/rss/de/rssxml/latest-news/rss",
+                        "https://cdn.prod.swi-services.ch/rss/eng/rssxml/latest-news/rss",
+                        "https://cdn.prod.swi-services.ch/rss/fr/rssxml/latest-news/rss"]
+
+  # RTS (Romandie)
+  rts_info:            ["https://www.rts.ch/info/?flux=rss"]
+
+  # Watson (works as-is)
+  watson:              ["https://www.watson.ch/api/1.0/rss.xml"]
+
+  # Ticino – avoid the expired certificate host, use these
+  tio:                 ["https://media.tio.ch/files/domains/tio.ch/rss/feed_rss.xml",
+                        "https://media.tio.ch/files/domains/tio.ch/rss/rss_ticino.xml"]
+
+  # Finance-heavy Swiss sources
+  finanzen_ch:         ["https://www.finanzen.ch/rss/news", "https://www.finanzen.ch/rss/analysen"]
+  finma_news:          ["https://www.finma.ch/en/rss/news/"]
+  finma_sanctions:     ["https://www.finma.ch/en/rss/sanktionen/"]
+
 sitemaps:
-  20min: ["https://www.20min.ch/sitemaps/de/news.xml"]   # parse <url><loc>, <news:title>, <news:publication_date>
+  20min:               ["https://www.20min.ch/sitemaps/de/news.xml"]
+  nau:                 ["https://www.nau.ch/_sitemap"]  # index of sitemaps
 
 html:
   businessclassost:
@@ -17,6 +55,7 @@ html:
       date: "div.datum"
       title: "h2.heading.h4"
       hidden_url: "div.hiddenarticleurl"
+
 
 # DISABLED: Google News RSS feeds cause redirect loop errors
 # These provide encoded redirect URLs that are not suitable for direct scraping

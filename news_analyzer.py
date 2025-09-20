@@ -78,10 +78,10 @@ class NewsPipeline:
         log_step_complete(self.logger, "URL Collection", duration, log_results)
         return results
     
-    def triage_with_model_mini(self) -> dict:
+    def triage_with_model_mini(self, skip_prefilter: bool = False) -> dict:
         """Step 2: AI-Powered Filtering using MODEL_MINI."""
-        # Note: Detailed logging is now handled within filter.filter_all_topics()
-        results = self.filter.filter_all_topics()
+        # Note: Detailed logging is now handled within filter.filter_for_creditreform()
+        results = self.filter.filter_for_creditreform(mode="standard", skip_prefilter=skip_prefilter)
         return results
     
     def scrape_selected(self, limit: int = 50) -> dict:
@@ -156,7 +156,7 @@ class NewsPipeline:
             return "Unknown"
     
     def run_full_pipeline(self, scrape_limit: int = 50, summarize_limit: int = 50, 
-                         export_format: str = "json") -> dict:
+                         export_format: str = "json", skip_prefilter: bool = False) -> dict:
         """
         Run the complete 5-step pipeline.
         
@@ -164,6 +164,7 @@ class NewsPipeline:
             scrape_limit: Max articles to scrape
             summarize_limit: Max articles to summarize
             export_format: Export format ("json" or "markdown")
+            skip_prefilter: If True, bypass priority-based pre-filtering
             
         Returns:
             Summary of all pipeline results
@@ -178,7 +179,7 @@ class NewsPipeline:
             results['step1_collection'] = self.collect_urls()
             
             # Step 2: AI Filter
-            results['step2_filtering'] = self.triage_with_model_mini()
+            results['step2_filtering'] = self.triage_with_model_mini(skip_prefilter=skip_prefilter)
             
             # Step 3: Scrape Content  
             results['step3_scraping'] = self.scrape_selected(limit=scrape_limit)
@@ -317,6 +318,12 @@ Examples:
         help="Disable file logging (console output only)"
     )
     
+    parser.add_argument(
+        "--enable-prefilter",
+        action="store_true",
+        help="Enable priority-based pre-filtering (process only top ~100 articles) - by default disabled"
+    )
+    
     args = parser.parse_args()
     
     # Set up logging level
@@ -348,7 +355,7 @@ Examples:
                 print(f"[DONE] Collection complete: {results}")
                 
             elif args.step == "filter":
-                results = pipeline.triage_with_model_mini()
+                results = pipeline.triage_with_model_mini(skip_prefilter=not args.enable_prefilter)
                 print(f"[DONE] Filtering complete: {results}")
                 
             elif args.step == "scrape":
@@ -369,7 +376,8 @@ Examples:
             results = pipeline.run_full_pipeline(
                 scrape_limit=args.limit,
                 summarize_limit=args.limit,
-                export_format=export_format
+                export_format=export_format,
+                skip_prefilter=not args.enable_prefilter
             )
             print(f"[SUCCESS] Pipeline completed in {results.get('total_duration', 'unknown')}")
             print(f"[EXPORT] Digest exported to: {results.get('step5_export_path', 'unknown')}")

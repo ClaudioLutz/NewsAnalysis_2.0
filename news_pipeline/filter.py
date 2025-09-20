@@ -244,7 +244,7 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return results
     
-    def get_unfiltered_articles(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+    def get_unfiltered_articles(self, force_refresh: bool = False, include_prefiltered: bool = False) -> List[Dict[str, Any]]:
         """Get articles from database that haven't been filtered yet."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -259,6 +259,15 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                 LIMIT 100
             """)
             self.logger.info("Force refresh mode: re-processing recent articles")
+        elif include_prefiltered:
+            # Include articles that were never AI-classified (only pre-filtered)
+            cursor = conn.execute("""
+                SELECT id, source, url, title, published_at, first_seen_at
+                FROM items 
+                WHERE triage_topic IS NULL 
+                ORDER BY first_seen_at DESC
+            """)
+            self.logger.info("Including pre-filtered articles that were never AI-classified")
         else:
             # Normal mode: only unfiltered articles
             cursor = conn.execute("""
@@ -358,13 +367,14 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return score
 
-    def filter_for_creditreform(self, mode: str = "standard") -> Dict[str, Any]:
+    def filter_for_creditreform(self, mode: str = "standard", skip_prefilter: bool = False) -> Dict[str, Any]:
         """
         OPTIMIZED: Single-pass filtering focused on Creditreform insights only.
         Replaces filter_all_topics() with smart priority-based processing.
         
         Args:
             mode: "express" for < 3min, "standard" for < 8min
+            skip_prefilter: If True, bypass priority scoring and process all deduplicated articles
             
         Returns:
             Enhanced results with priority scoring and early termination
@@ -374,13 +384,20 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         log_step_start(self.logger, "Creditreform-Focused AI Filtering", 
                       f"Single-pass classification for actionable insights ({mode} mode)")
         
-        # Get unfiltered articles (force refresh for testing if needed)
-        force_refresh = (mode == "express")  # Force refresh for express mode to test recent articles
-        unfiltered = self.get_unfiltered_articles(force_refresh=force_refresh)
+        # Get unfiltered articles - include pre-filtered articles when skip_prefilter=True
+        if skip_prefilter:
+            # When skipping prefilter, we want articles that were never AI-classified (only pre-filtered)
+            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=True)
+        elif mode == "express":
+            # Express mode uses force refresh for testing
+            unfiltered = self.get_unfiltered_articles(force_refresh=True, include_prefiltered=False)
+        else:
+            # Standard mode gets only truly unprocessed articles
+            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=False)
         
         if not unfiltered:
             self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
-            if not force_refresh:
+            if not skip_prefilter and mode != "express":
                 self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
             return {"creditreform_insights": {"processed": 0, "matched": 0}}
         
@@ -396,7 +413,11 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         target_topic = "creditreform_insights" if "creditreform_insights" in active_topics else list(active_topics.keys())[0]
         topic_config = active_topics[target_topic]
         
-        # Configuration
+        # Configuration - read skip_prefilter from topic config if not explicitly set
+        if not skip_prefilter:
+            skip_prefilter = topic_config.get('skip_prefilter', False)
+            self.logger.info(f"Reading skip_prefilter from config: {skip_prefilter}")
+        
         max_articles = 15 if mode == "express" else topic_config.get('max_articles_per_run', 25)
         confidence_threshold = topic_config.get('confidence_threshold', 0.80)
         early_terminate_at = topic_config.get('thresholds', {}).get('early_termination_at', max_articles)
@@ -405,25 +426,34 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         self.logger.info(f"Processing mode: {mode}")
         self.logger.info(f"Max articles to process: {max_articles}")
         self.logger.info(f"Confidence threshold: {confidence_threshold}")
+        self.logger.info(f"Pre-filtering: {'DISABLED - processing all articles' if skip_prefilter else 'ENABLED - priority-based filtering'}")
         self.logger.info(f"Available articles: {format_number(len(unfiltered))}")
         
-        # Priority-based article sorting
-        self.logger.info("Calculating article priorities...")
-        for article in unfiltered:
-            article['priority_score'] = self.calculate_priority_score(article)
-        
-        # Sort by priority (highest first)
-        sorted_articles = sorted(unfiltered, key=lambda x: x['priority_score'], reverse=True)
-        
-        # Limit articles for processing (optimization)
-        if mode == "express":
-            # Express mode: process only top 50 articles maximum
-            articles_to_process = sorted_articles[:min(50, len(sorted_articles))]
+        if skip_prefilter:
+            # Skip pre-filtering: process all deduplicated articles
+            self.logger.info("Skipping priority-based pre-filtering - processing all deduplicated articles")
+            articles_to_process = unfiltered
+            # Still add priority scores for logging/debugging purposes
+            for article in articles_to_process:
+                article['priority_score'] = self.calculate_priority_score(article)
         else:
-            # Standard mode: process top 100 articles maximum
-            articles_to_process = sorted_articles[:min(100, len(sorted_articles))]
+            # Priority-based article sorting (original behavior)
+            self.logger.info("Calculating article priorities...")
+            for article in unfiltered:
+                article['priority_score'] = self.calculate_priority_score(article)
+            
+            # Sort by priority (highest first)
+            sorted_articles = sorted(unfiltered, key=lambda x: x['priority_score'], reverse=True)
+            
+            # Limit articles for processing (optimization)
+            if mode == "express":
+                # Express mode: process only top 50 articles maximum
+                articles_to_process = sorted_articles[:min(50, len(sorted_articles))]
+            else:
+                # Standard mode: process top 100 articles maximum
+                articles_to_process = sorted_articles[:min(100, len(sorted_articles))]
         
-        self.logger.info(f"Processing top {len(articles_to_process)} priority articles")
+        self.logger.info(f"Processing {len(articles_to_process)} articles {'(all available)' if skip_prefilter else '(top priority)'}")
         
         # Enhanced system prompt for Creditreform context
         enhanced_system_prompt = self.build_creditreform_system_prompt(topic_config)

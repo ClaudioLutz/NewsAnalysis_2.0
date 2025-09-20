@@ -21,6 +21,9 @@ topics:
     confidence_threshold: 0.80
     max_articles_per_run: 15
     
+    # Pre-filtering control: if true, skips priority-based pre-filtering and processes all deduplicated articles
+    skip_prefilter: true
+    
     # Priority sources (government and financial authorities first)
     priority_sources:
       tier_1: ["admin.ch", "finma.ch", "snb.ch", "seco.admin.ch", "bfs.admin.ch"]

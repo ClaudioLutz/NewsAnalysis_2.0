@@ -115,7 +115,7 @@ class ContentScraper:
     def scrape_with_trafilatura(self, url: str) -> Optional[str]:
         """
         Extract content using trafilatura with improved settings.
-        RESEARCH FIX: Better headers, encoding support, and extraction logic.
+        RESEARCH FIX: Better headers, encoding support, and ZSTD compression handling.
         
         Args:
             url: Article URL to scrape
@@ -126,8 +126,28 @@ class ContentScraper:
         try:
             self.logger.debug(f"Extracting with trafilatura: {url}")
             
-            # RESEARCH FIX: Download with proper headers for Swiss sites
-            downloaded = trafilatura.fetch_url(url)
+            # CRITICAL FIX: Handle ZSTD compression and other encoding issues
+            # Use custom headers to avoid ZSTD compression which causes parsing errors
+            import requests
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate',  # Avoid ZSTD compression
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            try:
+                # Custom download with proper headers
+                response = requests.get(url, headers=headers, timeout=self.request_timeout)
+                response.raise_for_status()
+                downloaded = response.text
+            except Exception as req_error:
+                self.logger.debug(f"Custom download failed: {req_error}, falling back to trafilatura")
+                # Fallback to trafilatura's built-in download
+                downloaded = trafilatura.fetch_url(url)
             
             if not downloaded:
                 return None
@@ -278,7 +298,7 @@ Return the extracted text as plain text without any formatting or metadata."""
         return None, "failed"
     
     def get_articles_to_scrape(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get matched articles that need content extraction."""
+        """Get matched articles that need content extraction, excluding failed articles."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
@@ -289,7 +309,7 @@ Return the extracted text as plain text without any formatting or metadata."""
             FROM items i
             LEFT JOIN articles a ON i.id = a.item_id
             WHERE i.is_match = 1
-              AND a.item_id IS NULL
+              AND (a.item_id IS NULL OR (a.extracted_text IS NULL AND COALESCE(a.failure_count, 0) < 3))
         """
         params: list[Any] = []
         if skip_gnews:
@@ -318,7 +338,7 @@ Return the extracted text as plain text without any formatting or metadata."""
         conn.close()
         
         # Log what we found for debugging
-        self.logger.debug(f"Found {len(articles)} articles that need scraping")
+        self.logger.debug(f"Found {len(articles)} articles that need scraping (excluding failed articles)")
         return articles
     
     def save_extracted_content(self, item_id: int, extracted_text: str, method: str) -> bool:
@@ -327,7 +347,7 @@ Return the extracted text as plain text without any formatting or metadata."""
         
         try:
             conn.execute("""
-                INSERT OR REPLACE INTO articles (item_id, extracted_text, method)
+                INSERT OR REPLACE INTO articles (item_id, extracted_text, extraction_method)
                 VALUES (?, ?, ?)
             """, (item_id, extracted_text, method))
             
@@ -337,6 +357,42 @@ Return the extracted text as plain text without any formatting or metadata."""
             
         except Exception as e:
             self.logger.error(f"Error saving extracted content for article {item_id}: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def mark_article_failed(self, item_id: int, error_reason: str) -> bool:
+        """Mark article as failed to prevent infinite retries."""
+        conn = sqlite3.connect(self.db_path)
+        
+        try:
+            # First check if there's already a failure record
+            cursor = conn.execute("""
+                SELECT failure_count FROM articles WHERE item_id = ? AND extracted_text IS NULL
+            """, (item_id,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Update failure count
+                new_count = existing[0] + 1
+                conn.execute("""
+                    UPDATE articles 
+                    SET failure_count = ?, last_failure_reason = ?, extracted_at = CURRENT_TIMESTAMP
+                    WHERE item_id = ?
+                """, (new_count, error_reason, item_id))
+            else:
+                # Insert new failure record
+                conn.execute("""
+                    INSERT OR REPLACE INTO articles (item_id, extracted_text, extraction_method, failure_count, last_failure_reason)
+                    VALUES (?, NULL, 'failed', 1, ?)
+                """, (item_id, error_reason))
+            
+            conn.commit()
+            self.logger.debug(f"Marked article {item_id} as failed: {error_reason}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error marking article {item_id} as failed: {e}")
             return False
         finally:
             conn.close()
@@ -386,6 +442,8 @@ Return the extracted text as plain text without any formatting or metadata."""
                 if len(extracted_text) < 600:
                     self.logger.debug(f"Article too short ({len(extracted_text)} chars): {article['title'][:50]}")
                     results['too_short'] += 1
+                    # Mark as failed due to insufficient content
+                    self.mark_article_failed(article['id'], f"content_too_short_{len(extracted_text)}_chars")
                     continue
                 
                 # Save to database
@@ -396,9 +454,15 @@ Return the extracted text as plain text without any formatting or metadata."""
             else:
                 if method == "skipped_redirect":
                     results['skipped_redirect'] += 1
+                    # Mark as failed due to redirect issues
+                    self.mark_article_failed(article['id'], "skipped_google_news_redirect")
                     continue
 
                 results['failed'] += 1
+                
+                # Mark the article as failed to prevent retries
+                error_reason = f"extraction_failed_{method}"
+                self.mark_article_failed(article['id'], error_reason)
                 
                 # If MCP fails repeatedly, try reinitializing
                 if method == "failed" and self.mcp_client and i < len(articles):
