@@ -1,40 +1,40 @@
 {
   "date": "2025-09-19",
   "created_at": "2025-09-19T19:21:56.876682",
-  "generated_at": "2025-09-19T21:05:43.135178",
+  "generated_at": "2025-09-19T22:02:22.142200",
   "executive_summary": {
-    "headline": "Stronger franc, tougher supervision and operational shocks force Swiss firms to fast‑track hedging, compliance and supply‑chain resilience",
-    "executive_summary": "A US Fed rate cut has raised near‑term appreciation pressure on the Swiss franc, increasing margin and pricing stress for exporters and forcing the SNB and corporates into FX, liquidity and scenario planning. CEOs are accelerating automation, regionalisation and M&A to protect margins and reduce geopolitically driven supply‑chain risk, even as domestic tax and housing debates add uncertainty to consumer demand and cantonal finances. At the same time FINMA and the Federal Council are hardening prudential, resolution and accountability rules while a surge of sanctions, cyber incidents and rapid AI adoption materially raise compliance and operational burdens. Together these trends require coordinated balance‑sheet, governance and resilience actions now to avoid capital, reputational and service disruptions over the next 12–24 months.",
+    "headline": "Swiss corporates face a squeeze: stronger franc, tougher supervision and geopolitics force costly resilience and rapid digitisation",
+    "executive_summary": "A Fed rate cut and shifting global liquidity raise the risk of Swiss franc appreciation, threatening export margins and forcing urgent treasury and hedging reviews. Concurrently, CEOs are accelerating automation and regionalisation in response to geopolitical risk, increasing near‑term CapEx and operational strain while domestic fiscal and housing debates add demand and reputational uncertainty. Financial supervision and frequent sanctions updates are driving a step‑change in compliance, liquidity and capital planning, even as regulated innovation (DLT, AI, resumed US RIA access) creates selective growth opportunities. Leaders must balance resilience costs with targeted investments that preserve competitiveness and regulatory standing.",
     "key_themes": [
-      "Monetary shock and FX risk: Fed rate moves increase franc appreciation risk, pressuring exports and forcing active FX, liquidity and pricing management.",
-      "Strategic reshaping of supply chains: Firms prioritise automation, regionalisation and M&A to mitigate geopolitical and tariff risks while protecting margins.",
-      "Regulatory and supervisory tightening: FINMA/Federal Council TBTF, resolution and accountability reforms plus Basel‑type changes raise capital, liquidity and governance requirements.",
-      "Operational risk concentration: Rising sanctions workload, cyber incidents, third‑party breaches and rapid generative‑AI use amplify compliance, outsourcing and incident‑response needs.",
-      "Domestic fiscal/political uncertainty: Tax reform and housing debates threaten consumer demand and canton budgets, complicating planning and investment decisions."
+      "Monetary/FX pressure: US rate moves increase short‑to‑medium term CHF appreciation risk with direct export and monetary policy implications.",
+      "Geopolitical-driven reshoring and automation: firms prioritise localisation, regionalisation and efficiency investments, raising CapEx and supply‑chain redesign needs.",
+      "Regulatory and sanctions tightening: FINMA and federal rules expand TBTF, liquidity and consolidated supervision while frequent sanctions harmonisation raises operational/compliance spikes and costs.",
+      "Domestic fiscal and social uncertainty: tax and housing reform debates threaten canton revenues, workforce mobility and consumer demand, creating planning uncertainty for businesses.",
+      "Selective innovation opportunity: licenced DLT venues and resumed US market access offer growth paths but require compliance and capital trade‑offs."
     ],
     "top_priorities": [
-      "Immediate financial & scenario planning: Model franc‑appreciation scenarios; tighten FX hedging and pricing strategies; stress capital and liquidity plans against FINMA’s evolving TBTF and liquidity requirements; update M&A valuation and supply‑chain contingency assumptions.",
-      "Accelerate regulatory & sanctions readiness: Stand up or scale sanctions screening/case management, update AML/transaction controls, map accountability across executive/board lines, and fast‑track recovery/resolution and reporting processes to meet FINMA consultations and new supervisory expectations.",
-      "Harden operational resilience and transformation governance: Prioritise third‑party risk remediation (cloud/BigTech dependencies), run cyber tabletop exercises, formalise AI governance (data quality, explainability, vendor controls), and fast‑track automation/regionalisation pilots tied to workforce and real‑estate planning."
+      "Immediate balance‑sheet & treasury action: run CHF appreciation and SNB‑response scenarios, increase FX hedges, stress liquidity under higher capital/liquidity requirements and quantify impact on export margins and pricing strategy.",
+      "Compliance and operational resilience surge: prioritise sanctions screening automation, uplift transaction monitoring and SAR capacity, harden payment‑corridor contingencies, and align program budgets to FINMA timeline (2025–2027) for consolidated supervision and liquidity rules.",
+      "Synchronise strategic CapEx with regulatory and demand risks: fast‑track ROI‑driven automation and regionalisation pilots, while investing selectively in DLT/AI solutions that reduce compliance costs and enable scaled access to new markets."
     ],
-    "total_articles": 45,
+    "total_articles": 54,
     "total_topics": 3,
-    "generated_at": "2025-09-19T21:05:43.131273"
+    "generated_at": "2025-09-19T22:02:22.138236"
   },
   "trending_topics": [
+    {
+      "topic": "creditreform_insights",
+      "article_count": 41,
+      "avg_confidence": 0.889,
+      "source_diversity": 4,
+      "trend_score": 36.46
+    },
     {
       "topic": "schweizer_wirtschaft",
       "article_count": 39,
       "avg_confidence": 0.823,
       "source_diversity": 6,
       "trend_score": 32.09
-    },
-    {
-      "topic": "creditreform_insights",
-      "article_count": 32,
-      "avg_confidence": 0.892,
-      "source_diversity": 4,
-      "trend_score": 28.53
     }
   ],
   "topic_digests": {
@@ -48,15 +48,15 @@
       "article_count": 0
     },
     "schweizer_wirtschaft": {
-      "headline": "Externes Umfeld und innere Reformen zwingen Schweizer Wirtschaft zum Umbau: Fed-Zinssenkung erhöht Franken‑Risiko und Druck auf Exporte, während CEOs auf Automatisierung und Regionalisierung setzen und inländische Polit- und Wohnkonflikte Fiskal- und Konsum-Szenarien verändern.",
-      "why_it_matters": "Der US‑Fed‑Schnitt um 25 Basispunkte (auf 4–4,25%) erhöht kurzfristig Risiko‑ und Asset‑Preisverschiebungen, kann aber einen stärkeren Franken zur Folge haben – eine direkte Belastung für Schweizer Exportindustrien und die SNB‑Politik. Parallel treiben geopolitische Unsicherheit und Strafzölle die Schweizer Unternehmensführung zu Automation, Lokalisierung und M&A, während Steuerreform‑ und Wohnungsdebatten (fiskalische Lücken, steigende Mieten) die Binnennachfrage und Kantonsbudgets unmittelbar tangieren.",
+      "headline": "Schweizer Wirtschaft im Spannungsfeld: US-Zinssenkung, geopolitische Unsicherheit und innenpolitische Reformen zwingen Firmen zu Automatisierung, Regionalisierung und Risiko‑Kontrolle — während Wohnkosten, Steuerdebatten und Governance‑Fälle fiskale und reputative Risiken verstärken.",
+      "why_it_matters": "Die Fed‑Zinssenkung (−25 Basispunkte auf 4–4,25%) verändert Zins‑ und Währungsdynamiken und erhöht das Risiko einer Frankenaufwertung, was Exportmargen und SNB‑Politik unmittelbar betrifft. Gleichzeitig treiben geopolitische Risiken Schweizer CEOs zu Automatisierung (48%) und Lokalisierung (74%), während innenpolitische Abstimmungen (Eigenmietwert, Individualbesteuerung) und die Wohnungsnot direkte fiskalische, sozialpolitische und Nachfrageseffekte für Unternehmen und Kantonsfinanzen auslösen.",
       "bullets": [
-        "Monetäre Schockwellen: Die Fed senkte den Leitzins um 25 Basispunkte (auf 4–4,25%), worauf Schweizer Analysten kurzfristig positive Effekte für Aktien, Gold und riskantere Anlagen sehen, gleichzeitig aber ein Aufwertungsrisiko des Frankens, das Exporteure und SNB‑Handlungsbedarf (Interventionen, theoretisch Zinssenkungen) erzwingt.",
-        "CEOs reagieren strategisch: 52% der befragten Schweizer Konzernchefs nennen Geopolitik als größtes Risiko; 48% planen Effizienz‑/Automatisierungsmaßnahmen und 74% Lokalisierung/Regionalisierung – 40% planen binnen 12 Monaten M&A, 76% Allianzen/JVs. Energie-, ESG‑ und Regulierungs‑Hürden (je 54%) bleiben zentrale Implementationsrisiken.",
-        "Steuer- und Abstimmungsrisiken: Der Vorschlag zur Individualbesteuerung würde laut Bundesrat rund 600 Mio. CHF Bundessteuer‑Ausfall pro Jahr verursachen und 1,7 Mio. zusätzliche Steuererklärungen generieren; politischer Widerstand (Referenden, überparteiliches Komitee) erhöht Unsicherheit für Kantonsfinanzen und Steuerplanung.",
-        "Wohnungsmarkt und Konsumdruck: Umfragereports zeigen breite Verletzlichkeit – zahlreiche Haushalte zahlen 41–65% ihres Einkommens für Miete; die Zustimmung zur Abschaffung des Eigenmietwerts schrumpfte von 65% auf 54%. Steigende Angebotsmieten seit 2022 verschlechtern Mobilität, belasten Konsum und erhöhen politischen Druck für zielgerichtete Sozialmassnahmen oder Neubauprogramme.",
-        "Infrastruktur, Technologie und Exportchancen: Pilotprojekte und Partnerschaften zeigen Wachstumsfelder für Schweizer Technologieexporte – Flughafen Zürich testet autonome Shuttles (3,15 km Strecke, Ziel SAE L4 bis Ende 2025); enespa und UK‑Partner Nexergy vereinbaren Pyrolyse‑Recyclingprojekte als Export- und Skalierungschance; Wikkelhouse‑Modularproduktion (bis 100 Einheiten/Jahr) und private Revitalisierungsprojekte (z. B. Rigi‑Investitionen ~4 Mio. CHF) eröffnen Nischen im Tourismus- und Wohnsegment.",
-        "Governance‑ und Reputationsrisiken steigen: RUAG entliess einen Mitarbeiter nach Belästigungsvorwürfen (HR, externe Untersuchung) und die Marsalek‑Recherchen in Moskau unterstreichen Bedarf an stärkerer AML/Due‑Diligence‑Kooperation. Für sicherheitsnahe Anbieter und Finanzakteure erhöhen sich Compliance‑ und Partner‑Risiken, die Beschaffungs- und Versicherungsbedingungen beeinflussen können."
+        "Monetäre Verschiebung: Fed senkte den Leitzins um 25 bp (4–4,25%) — kurzfristig begünstigt das Risikoanlagen wie Aktien, Gold und Bitcoin; mittel‑/langfristig droht eine Franken‑Aufwertung, die Exporte belastet und SNB‑Interventionen oder Zinssenkungen erzwingen könnte. Hypothekarkosten dürften nicht sofort deutlich fallen; mehrere Senkungsrunden wären nötig, um Spareinlagen‑Renditen nachhaltig zu verändern.",
+        "Geschäftsstrategie unter geopolitischem Druck: 52% der befragten Schweizer CEOs nennen Geopolitik als größtes Risiko; 48% planen Effizienz‑/Automatisierungsmaßnahmen, 74% Lokalisierung und 79% sehen Regionalisierung als langfristige Strategie — das erhöht Investitionen in CapEx, digitale/robotische Lösungen und lokale Zulieferketten, verschärft aber kurzfristig Margendruck durch Energiekosten und ESG‑Auflagen (je 54%).",
+        "Innenpolitischer und fiskalischer Druck: Debatten um Individualbesteuerung (Bundesrat rechnet mit ~CHF 600 Mio Mindereinnahmen p.a.) und die umkämpfte Abschaffung des Eigenmietwerts (Zustimmung laut Umfrage von 65% auf 54% gefallen; Nein‑Block auf 44% gestiegen) erzeugen Unsicherheit für Kantonsbudgets, Steuerplanung und Immobilienmärkte — Unternehmen mit regionaler Steuerabhängigkeit und Immobilienportfolios müssen Szenarien rechnen.",
+        "Wohnungsmarkt und Konsumrisiko: Angebotsmieten seit 2022 deutlich gestiegen; viele Haushalte (insbesondere Alleinerziehende, Geringverdiener) zahlen 41–65% ihres Einkommens für Miete, was Konsum, Gesundheitskosten und Arbeitsmobilität belastet und politischen Druck für gezielte Sozialmassnahmen und mehr Neubau erzeugt.",
+        "Technologie, Klima und Kreislaufwirtschaft als Wachstumsachse: Schweizer Technologieexporte und Partnerschaften gewinnen Fahrt — enespa (CH) vereinbart mit Nexergy (UK) pyrolysebasierte Recycling‑Projekte; modularer Wohnbau (Wikkelhouse, Kapazität bis zu 100 Einheiten/Jahr) und Investitionen in Denkmalpflege (Beispiel Rigi: Ankauf CHF 750'000, geplante Investitionen ~CHF 4 Mio) zeigen neue Nischen‑Exportchancen.",
+        "Governance, Reputation und innere Sicherheit: Fälle wie RUAG (Entlassung nach Belästigungsvorwürfen; verzögerte Whistleblower‑Eskalatino ~6 Wochen) und die internationale Marsalek‑Recherche (Handy‑Erfassungen u.a. 304 Mal am FSB‑Sitz 2024) erhöhen Druck auf Compliance, AML/KYC, HR‑Prozesse und staatliche Kooperation — relevanter für Rüstungsindustrie, Finanzsektor und multinational tätige KMU."
       ],
       "sources": [
         "https://www.20min.ch/story/us-notenbank-senkt-zinsen-franken-aktien-bitcoin-diese-folgen-hat-der-fed-entscheid-103416740",
@@ -76,20 +76,23 @@
       "topic": "schweizer_wirtschaft",
       "date_range": "today",
       "article_count": 13,
-      "generated_at": "2025-09-19T21:04:36.453718"
+      "generated_at": "2025-09-19T22:01:01.643926"
     },
     "creditreform_insights": {
-      "headline": "Swiss financial regulation tightens while sanctions and operational risks accelerate — immediate compliance and capital planning required. FINMA is strengthening TBTF rules and supervisory powers as sanctions updates, cyber supply‑chain incidents and rapid AI adoption create sustained operational, legal and market strains for banks, asset managers and fintechs.",
-      "why_it_matters": "A stream of near‑daily sanctions amendments is increasing transaction‑screening, asset‑freeze and reporting workloads for Swiss intermediaries and exporters, raising the risk of blocked flows and reputational damage. Concurrently, FINMA and the Federal Council are raising prudential, resolution and consolidated‑supervision standards (including an accountability regime), forcing banks and financial groups to reassess capital, liquidity and governance frameworks while balancing innovation opportunities (DLT trading) and renewed US market access for Swiss asset managers.",
+      "headline": "Swiss financial supervision tightens while compliance workload spikes: FINMA and federal bodies push stronger TBTF, liquidity and sanctions regimes even as innovation (DLT, AI, US market access) advances — industry faces higher operational costs, cyber and outsourcing risks and renewed insolvency clarity.",
+      "why_it_matters": "A wave of UN/EU-driven sanctions updates plus a Federal Council harmonisation rule is forcing Swiss banks, asset managers and payment providers into immediate freezes, enhanced screening and increased reporting, raising compliance and liquidity frictions. Simultaneously FINMA is elevating regulatory requirements (TBTF accountability, consolidated supervision, new liquidity and risk-diversification ordinances) while enabling innovation (first licensed DLT trading venue, resumed US RIA access) — creating a near-term trade-off between resilience costs and strategic growth opportunities for the Swiss financial centre.",
       "bullets": [
-        "Sanctions surge & operational burden: Multiple SECO/FINMA notices in 2025 expanded or amended sanctions regimes for Russia, Ukraine, Belarus, Myanmar, Iran, Syria, Iraq, Guatemala, Haiti, Moldova, Zimbabwe, ISIL/Al‑Qaida and others — requiring immediate asset freezes, SECO notifications and continued AML (Arts.6/9 GwG). Practical impact: recurring system updates, increased case management, higher transaction‑blocking rates and supervisory scrutiny across banks, wealth managers and payment providers.",
-        "Regulatory tightening and crisis‑readiness: FINMA publicly supports Federal Council TBTF parameters (accountability regime, clawbacks, removal of suspensive appeal effects, fining powers) and has launched consultations to convert FINMA circulars into RDO‑FINMA and LiqO‑FINMA (effective target 1 Jan 2027) — including market‑risk trading‑book changes (Basel III) and a new liquidity & financial planning requirement. Implication: higher recovery/resolution standards, stricter intra‑group exposure rules and stronger corporate‑governance expectations for systemically important and grouped entities.",
-        "Operational risk nexus — cyber, outsourcing and AI: FINMA reports cyber incidents +30% y/y and flags outsourcing concentration as a material risk; a major Salesforce supply‑chain hack (1.5bn files reportedly exposed) underscores third‑party fragility. At the same time FINMA’s AI survey shows ~50% of institutions already use AI and 91% of AI users deploy generative tools — increasing BigTech dependency and outsourcing risk. Banks must accelerate third‑party risk management, incident response planning and AI governance (data quality, explainability, vendor controls).",
-        "Market & trade effects from sanctions: Switzerland’s alignment with EU sanction packages (e.g., Russia’s 16th/18th packages) introduced export bans and commodity restrictions — notably chromium ores and raw aluminium imports — directly affecting exporters, commodity traders, supply chains and corporate clients. Expect re‑routing of trade, higher compliance costs for corporates and potential counterparty/settlement frictions for banks handling cross‑border flows.",
-        "Innovation and market access: FINMA licensed the first DLT trading facility (BX Digital) enabling DLT multilateral trading and settlement via Ethereum smart contracts linked to SIC; the SEC resumed RIA application processing for FINMA‑supervised Swiss asset managers — reopening US distribution channels. But benefits come with caveats: DLT players face strict operational controls (no custody by BX Digital) and asset managers should plan for dual supervision and potential examination costs.",
-        "Immediate financial‑stability and market structure signals: FINMA’s intensified supervision (2024: 111 bank on‑site reviews, increased stress testing, institution‑specific capital add‑ons) plus published guidance on mortgage/real‑estate risks (weak valuations, loose affordability practices) indicate higher probability of targeted capital requirements and enforcement actions. For smaller or weakly capitalised fintechs the environment is tougher (example: SWISS4.0 liquidation; FinTech licence limits: deposits up to CHF100m and no deposit protection)."
+        "Sanctions continuity and operational pressure: Multiple SECO/FINMA notices in 2025 updated SESAM across jurisdictions (Russia/Ukraine, Iran, Belarus, Myanmar, Libya, Sudan, Syria, Haiti, Guatemala, Moldova, South Sudan, Sudan, Zimbabwe removed one target), culminating in a Harmonisation Regulation covering 14 jurisdictions/groups (effective 15 Sep 2025). Practical impact: immediate asset freezes, mandatory SECO reports and parallel AML obligations (Art. 6/9 GwG) — expect repeated short-notice operational spikes in screening, transaction blocking and SAR filing.",
+        "Regulatory hardening for systemic resilience: FINMA endorsed Federal Council TBTF parameters (accountability regime, expanded early-intervention and fining powers, full deduction of foreign subsidiary participations from CET1) and launched consultations to convert key circulars into RDO-FINMA and LiqO-FINMA (target effective date 1 Jan 2027). Implication: higher capital, group-exposure and liquidity planning demands for systemically important banks and clearer grounds for supervisory action.",
+        "Compliance, cost and market-friction metrics: FINMA’s surveillance and guidance (insolvency ordinance consolidation effective 1 Oct 2025; Circular 2025/4 on consolidated supervision effective 1 Jul 2025) will expand supervisory perimeter and reporting scope. Combined with repeated sanctions updates, institutions should budget for increased headcount/automation for sanctions screening, transaction monitoring and legal reviews — measurable near-term increase in operational costs and potential short-term payment corridor disruptions with correspondent banks.",
+        "Innovation with guarded supervision: FINMA granted the first DLT trading facility licence (BX Digital) and issued crypto-disclosure guidance (Guidance 03/2025), while the SEC resumed RIA registrations for FINMA‑supervised Swiss asset managers (reducing US market access uncertainty). These moves create growth channels (tokenised securities markets, US distribution) but subject participants to tight operational, custody and disclosure safeguards.",
+        "Operational risk and sector vulnerabilities: FINMA reports cyber incidents up 30% y/y and flags outsourcing concentration as material; the large Salesforce/Supply‑Chain breach highlights cascading third‑party risk. FinTech fragility was underscored by SWISS4.0’s liquidation (c.250 clients) and FINMA’s signal to strengthen client‑asset protections — both increasing reputational and contagion risk for smaller licensees.",
+        "Forward indicators for Swiss economy and markets: supervisory focus on recovery planning (PostFinance needs recapitalisation capacity by end‑2025), consolidated insolvency procedures and harmonised sanctions rules will stabilise systemic resilience but raise costs for exporters, commodity traders and wealth managers (notably Russia-related export restrictions, aluminium/chrome bans). Expect continued alignment with EU/UN sanctions, periodic compliance shocks, selective market re-openings (e.g., Syrian energy/transport adjustments) and incremental regulatory adjustments through 2026–2027."
       ],
       "sources": [
+        "https://www.finma.ch/en/news/2025/08/20250825-sr-946-231-08/",
+        "https://www.finma.ch/en/news/2025/08/20250819-sr-946-231-169-9/",
+        "https://www.finma.ch/en/news/2025/08/20250819-sr-946-231-143-6/",
         "https://www.finma.ch/en/news/2025/05/20250513-sr-946-231-157-5/",
         "https://www.finma.ch/en/news/2025/06/20250606-mm-finma-tbtf/",
         "https://www.finma.ch/en/news/2025/06/20250626-sr-946-231-137-6/",
@@ -106,29 +109,35 @@
         "https://www.finma.ch/en/news/2025/03/20250304-sr-946-209-2/",
         "https://www.finma.ch/en/news/2025/03/20250307-sr-946-231-172-7/",
         "https://www.finma.ch/en/news/2025/03/20250307-sr-196-127-27/",
+        "https://www.finma.ch/en/news/2025/08/20250819-sr-946-231-149-82/",
         "https://www.finma.ch/en/news/2025/04/20250425-sr-946-231-143-6/",
         "https://www.finma.ch/en/news/2025/03/20250314-sr-946-203/",
         "https://www.finma.ch/en/news/2025/03/20250319-mm-rs-25-4-konsolidierte-aufsicht/",
         "https://www.finma.ch/en/news/2025/06/20260610-mm-ria-sec/",
         "https://www.finma.ch/en/news/2025/08/20250813-sr-946-231-156-5/",
         "https://www.finma.ch/en/news/2025/03/20250310-sr-946-231-157-5/",
+        "https://www.finma.ch/en/news/2025/08/20250813-harmonisierung-von-sanktionsverordnungen/",
+        "https://www.finma.ch/en/news/2025/08/20250819-sr-946-231-18/",
+        "https://www.finma.ch/en/news/2025/09/20250904-mm-insolvenzverordnung/",
         "https://www.finma.ch/en/news/2025/05/20250516-sr-946-231-176-72/",
         "https://www.finma.ch/en/news/2025/04/20250410-sr-946-231-116-9/",
         "https://www.finma.ch/en/news/2025/05/20250522-mm-hypothekarrisiken/",
         "https://www.blick.ch/wirtschaft/20-millionen-franken-schulden-investoren-von-walliser-skigebiet-springen-ploetzlich-ab-rettung-futsch-id21247058.html",
         "https://www.finma.ch/en/news/2025/03/20250318-mm-dlt-handelssystem/",
         "https://www.nzz.ch/technologie/ein-hack-auf-salesforce-duerfte-eine-kaskade-des-betrugs-ausloesen-das-fbi-ruft-unternehmen-zur-vorsicht-auf-ld.1903264",
+        "https://www.finma.ch/en/news/2025/08/20250828-mm-notfall-und-stabilisierungsplaene/",
         "https://www.finma.ch/en/news/2025/04/20250408-mm-jmk-25/",
         "https://www.finma.ch/en/news/2025/04/20250424-mm-umfrage-ki/",
         "https://www.finma.ch/en/news/2025/02/20250227-fatf-statement/",
-        "https://www.finma.ch/en/news/2025/03/20250311-mm-abschluss-uvv/"
+        "https://www.finma.ch/en/news/2025/03/20250311-mm-abschluss-uvv/",
+        "https://www.finma.ch/en/news/2025/09/20250905-meldung-am-kryptovermoegenswerte/"
       ],
       "topic": "creditreform_insights",
       "date_range": "today",
-      "article_count": 32,
-      "generated_at": "2025-09-19T21:05:25.105931"
+      "article_count": 41,
+      "generated_at": "2025-09-19T22:02:02.970243"
     }
   },
   "updated": true,
-  "last_updated": "2025-09-19T21:05:43.135178"
+  "last_updated": "2025-09-19T22:02:22.142200"
 }

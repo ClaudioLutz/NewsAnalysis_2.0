@@ -416,6 +416,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
     def export_daily_digest(self, output_path: str | None = None, format: str = "json") -> str:
         """
         Export daily digest to file. If file exists for today, update with accumulated data.
+        Also generates German rating agency report automatically.
         
         Args:
             output_path: Output file path
@@ -485,6 +486,16 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
         
         action = "Updated" if original_created_at else "Created"
         self.logger.info(f"{action} daily digest: {output_path}")
+        
+        # Auto-generate German rating report after JSON export
+        if format == "json":
+            try:
+                from news_pipeline.german_rating_formatter import format_daily_digest_to_german_markdown
+                german_report_path = format_daily_digest_to_german_markdown(output_path)
+                self.logger.info(f"Auto-generated German rating report: {german_report_path}")
+            except Exception as e:
+                self.logger.warning(f"Failed to generate German rating report: {e}")
+        
         return output_path
     
     def _write_markdown_digest(self, file, data: Dict[str, Any]):
