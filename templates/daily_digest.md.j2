@@ -1,0 +1,94 @@
+# Swiss Business News Digest - {{ data.date }}
+
+{% if data.updated -%}
+**Last Updated:** {{ data.last_updated | datetime_format }}  
+{% endif -%}
+**Generated:** {{ data.generated_at | datetime_format }}
+
+---
+
+## Executive Summary
+
+**{{ data.executive_summary.headline }}**
+
+{{ data.executive_summary.executive_summary }}
+
+{% if data.executive_summary.key_themes %}
+### Key Themes
+
+{% for theme in data.executive_summary.key_themes -%}
+- {{ theme }}
+{% endfor %}
+{% endif %}
+
+{% if data.executive_summary.top_priorities %}
+### Top Priorities
+
+{% for priority in data.executive_summary.top_priorities -%}
+- {{ priority }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Trending Topics
+
+{% if data.trending_topics %}
+{% for topic in data.trending_topics[:5] -%}
+{{ loop.index }}. **{{ topic.topic | topic_name }}** ({{ topic.article_count }} articles, confidence: {{ topic.avg_confidence | round(2) }})
+{% endfor %}
+{% else %}
+*No trending topics identified.*
+{% endif %}
+
+---
+
+## Topic Analysis
+
+{% for topic_name, digest in data.topic_digests.items() %}
+### {{ topic_name | topic_name }}
+
+{% if digest.article_count > 0 -%}
+**{{ digest.headline }}**
+
+{{ digest.why_it_matters }}
+
+{% if digest.bullets %}
+**Key Points:**
+
+{% for bullet in digest.bullets -%}
+- {{ bullet }}
+{% endfor %}
+{% endif %}
+
+*Based on {{ digest.article_count }} articles*
+
+{% if digest.sources %}
+**Sources:**
+{% for source in digest.sources[:5] -%}
+- [{{ source | domain_name }}]({{ source }})
+{% endfor %}
+{% if digest.sources | length > 5 -%}
+*... and {{ digest.sources | length - 5 }} more sources*
+{% endif %}
+{% endif %}
+
+{% else -%}
+*No recent articles found for this topic.*
+{% endif %}
+
+---
+
+{% endfor %}
+
+## Report Metadata
+
+- **Total Articles:** {{ data.executive_summary.total_articles | default('N/A') }}
+- **Topics Covered:** {{ data.topic_digests | length }}
+- **Report Date:** {{ data.date }}
+- **Generation Time:** {{ data.generated_at | datetime_format }}
+{% if data.updated -%}
+- **Update Status:** Updated (originally created {{ data.created_at | datetime_format }})
+{% endif %}
+
+*This report was generated automatically by the NewsAnalysis_2.0 system.*

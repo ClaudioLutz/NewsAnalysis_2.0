@@ -59,6 +59,19 @@ class GermanRatingFormatter:
             with open(digest_json_path, 'r', encoding='utf-8') as f:
                 digest_data = json.load(f)
             
+            # Check if there are any meaningful articles to process
+            topic_digests = digest_data.get('topic_digests', {})
+            total_article_count = sum(digest.get('article_count', 0) for digest in topic_digests.values())
+            
+            if total_article_count == 0:
+                self.logger.info("No articles found in digest - skipping German rating report generation")
+                
+                # Return a placeholder path to maintain API compatibility
+                report_date = digest_data.get('date', datetime.now().strftime('%Y-%m-%d'))
+                output_filename = f"bonitaets_tagesanalyse_{report_date}.md"
+                output_path = os.path.join(output_dir, output_filename)
+                return output_path
+            
             # Extract date from data
             report_date = digest_data.get('date', datetime.now().strftime('%Y-%m-%d'))
             

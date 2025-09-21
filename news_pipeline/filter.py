@@ -23,6 +23,13 @@ from .utils import (
 import time
 from .utils import url_hash
 
+# Import prefilter for cost-effective embedding-based filtering
+try:
+    from prefilter.prefilter_runtime import prefilter_titles
+    PREFILTER_AVAILABLE = True
+except ImportError:
+    PREFILTER_AVAILABLE = False
+
 
 class AIFilter:
     """AI-powered relevance filtering using MODEL_NANO."""
@@ -409,6 +416,72 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return score
 
+    def apply_embedding_prefilter(self, articles: List[Dict[str, Any]], target_topic: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """
+        Apply embedding-based prefilter to reduce articles before expensive LLM classification.
+        
+        Args:
+            articles: List of articles to prefilter
+            target_topic: Topic for prefiltering
+            
+        Returns:
+            Tuple of (survivors, prefilter_stats)
+        """
+        if not PREFILTER_AVAILABLE:
+            self.logger.warning("Prefilter not available - processing all articles")
+            return articles, {"available": False, "survivors": len(articles), "original": len(articles), "reduction": "0%"}
+        
+        try:
+            # Convert articles to prefilter format
+            prefilter_articles = []
+            for article in articles:
+                prefilter_articles.append({
+                    "id": str(article["id"]),
+                    "title": article.get("title", ""),
+                    "topic": target_topic
+                })
+            
+            self.logger.info(f"🚀 PREFILTER: Applying embedding-based prefilter to {len(prefilter_articles)} articles")
+            
+            # Apply prefilter
+            survivors, scores = prefilter_titles(prefilter_articles, "outputs/prefilter_model.json")
+            
+            # Convert back to original format
+            survivor_ids = {s["id"] for s in survivors}
+            filtered_articles = [a for a in articles if str(a["id"]) in survivor_ids]
+            
+            # Calculate stats
+            original_count = len(articles)
+            survivor_count = len(filtered_articles)
+            reduction_pct = ((original_count - survivor_count) / original_count * 100) if original_count > 0 else 0
+            
+            prefilter_stats = {
+                "available": True,
+                "original": original_count,
+                "survivors": survivor_count,
+                "reduction": f"{reduction_pct:.1f}%",
+                "cost_savings": f"${(original_count - survivor_count) * 0.002:.3f}",  # Rough estimate
+                "scores": dict(scores)
+            }
+            
+            self.logger.info(f"💰 PREFILTER: Reduced {original_count} → {survivor_count} articles ({reduction_pct:.1f}% cost reduction)")
+            
+            # Log top survivors
+            if survivors:
+                self.logger.info("🏆 PREFILTER: Top survivors:")
+                scores_dict = dict(scores)
+                sorted_survivors = sorted(survivors, key=lambda x: scores_dict.get(x["id"], 0), reverse=True)
+                for i, survivor in enumerate(sorted_survivors[:3], 1):
+                    score = scores_dict.get(survivor["id"], 0)
+                    title = survivor["title"][:50] + "..." if len(survivor["title"]) > 50 else survivor["title"]
+                    self.logger.info(f"   {i}. Score: {score:.3f} | {title}")
+            
+            return filtered_articles, prefilter_stats
+            
+        except Exception as e:
+            self.logger.error(f"Prefilter error: {e} - falling back to all articles")
+            return articles, {"available": False, "error": str(e), "survivors": len(articles), "original": len(articles)}
+
     def filter_for_creditreform(self, mode: str = "standard", skip_prefilter: bool = False) -> Dict[str, Any]:
         """
         OPTIMIZED: Single-pass filtering focused on Creditreform insights only.
@@ -499,10 +572,29 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         self.logger.info(f"Processing {len(articles_to_process)} articles {'(all available)' if skip_prefilter else '(top priority)'}")
         
+        # STEP: Apply embedding-based prefilter to reduce expensive LLM calls
+        # Skip embedding prefilter if skip_prefilter is True OR if explicitly disabled in config
+        prefilter_enabled = (PREFILTER_AVAILABLE 
+                            and not skip_prefilter 
+                            and not topic_config.get('disable_embedding_prefilter', False))
+        
+        if prefilter_enabled:
+            self.logger.info(f"[{mode.upper()} MODE] PREFILTER: Applying embedding-based prefilter to {len(articles_to_process)} articles")
+            articles_to_process, prefilter_stats = self.apply_embedding_prefilter(articles_to_process, target_topic)
+            self.logger.info(f"🎯 [TARGET] PREFILTER: {prefilter_stats['survivors']}/{prefilter_stats['original']} articles survived embedding prefilter ({prefilter_stats['reduction']} reduction)")
+        else:
+            prefilter_stats = {"available": False, "survivors": len(articles_to_process), "original": len(articles_to_process)}
+            if skip_prefilter:
+                self.logger.info("⚠️  PREFILTER: Embedding-based prefilter DISABLED via skip_prefilter parameter")
+            elif topic_config.get('disable_embedding_prefilter', False):
+                self.logger.info("⚠️  PREFILTER: Disabled via topic configuration (disable_embedding_prefilter)")
+            elif not PREFILTER_AVAILABLE:
+                self.logger.info("⚠️  PREFILTER: Not available - install dependencies if needed")
+        
         # Enhanced system prompt for Creditreform context
         enhanced_system_prompt = self.build_creditreform_system_prompt(topic_config)
         
-        # Smart batch processing with early termination
+        # Smart batch processing with early termination (now on prefiltered articles)
         results = []
         matched_count = 0
         processed_count = 0
@@ -818,6 +910,7 @@ Be selective - only mark articles that provide actionable business intelligence.
         """
         Select top N articles for processing.
         CRITICAL: Excludes already-summarized articles!
+        Uses topic-specific thresholds when available instead of global threshold.
         
         Args:
             run_id: Pipeline run identifier
@@ -828,8 +921,27 @@ Be selective - only mark articles that provide actionable business intelligence.
         conn = sqlite3.connect(self.db_path)
         
         config = self.pipeline_config['pipeline']['filtering']
-        threshold = config.get('confidence_threshold', 0.70)
+        global_threshold = config.get('confidence_threshold', 0.70)
         max_articles = config.get('max_articles_to_process', 35)
+        
+        # Determine which topic we're working with
+        cursor = conn.execute("""
+            SELECT DISTINCT triage_topic 
+            FROM items 
+            WHERE pipeline_run_id = ? AND is_match = 1
+            LIMIT 1
+        """, (run_id,))
+        
+        topic_row = cursor.fetchone()
+        if topic_row:
+            topic = topic_row[0]
+            # Use topic-specific threshold if available, otherwise fall back to global
+            topic_config = self.topics_config['topics'].get(topic, {})
+            threshold = topic_config.get('confidence_threshold', global_threshold)
+            self.logger.info(f"Using threshold for topic '{topic}': {threshold} (topic-specific: {threshold != global_threshold})")
+        else:
+            threshold = global_threshold
+            self.logger.info(f"Using global threshold: {threshold} (no topic found)")
         
         # Reset selection state
         conn.execute("""

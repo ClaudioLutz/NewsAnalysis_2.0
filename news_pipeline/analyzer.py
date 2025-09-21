@@ -420,21 +420,60 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
     
     def export_daily_digest(self, output_path: str | None = None, format: str = "json", run_id: str | None = None) -> str:
         """
-        Export daily digest to file. If file exists for today, update with accumulated data.
-        Also generates German rating agency report automatically.
+        Export daily digest to JSON file. Always generates German rating agency report automatically.
+        Note: Markdown format has been disabled as the German rating report serves as the final output.
         
         Args:
             output_path: Output file path
-            format: Export format ("json" or "markdown")
+            format: Export format (only "json" supported, markdown disabled)
             run_id: Optional pipeline run ID to filter summaries
             
         Returns:
             Path to exported file
         """
+        # Force JSON format since markdown generation is disabled
+        if format != "json":
+            self.logger.warning(f"Format '{format}' not supported. Markdown generation disabled - using JSON format.")
+            format = "json"
+        
+        # Check if there are any summaries to process BEFORE doing expensive operations
+        conn = sqlite3.connect(self.db_path)
+        
+        if run_id:
+            # Check for summaries from this specific pipeline run
+            cursor = conn.execute("""
+                SELECT COUNT(*) FROM summaries s
+                JOIN items i ON s.item_id = i.id
+                WHERE i.pipeline_run_id = ?
+            """, (run_id,))
+        else:
+            # Check for summaries from today
+            cutoff_date = (datetime.now() - timedelta(days=1)).isoformat()
+            cursor = conn.execute("""
+                SELECT COUNT(*) FROM summaries s
+                JOIN items i ON s.item_id = i.id
+                WHERE i.published_at >= ? OR s.created_at >= ?
+            """, (cutoff_date, cutoff_date))
+        
+        summary_count = cursor.fetchone()[0]
+        conn.close()
+        
+        if summary_count == 0:
+            self.logger.info("No articles found with summaries - skipping digest and report generation")
+            self.logger.info("Daily digest and German rating report creation skipped (0 articles selected and 0 scraped)")
+            
+            # Return a placeholder path to maintain API compatibility
+            date_str = datetime.now().strftime('%Y-%m-%d')
+            placeholder_path = f"out/digests/daily_digest_{date_str}.json"
+            return placeholder_path
+        
+        # Generate fresh daily digests with summaries data
+        digests = self.generate_daily_digests()
+        
         # Determine output path
         if output_path is None:
             date_str = datetime.now().strftime('%Y-%m-%d')
-            output_path = f"out/digests/daily_digest_{date_str}.{format}"
+            output_path = f"out/digests/daily_digest_{date_str}.json"
         
         # Ensure directory exists
         dir_path = os.path.dirname(output_path)
@@ -443,7 +482,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
         
         # Check if file exists for today and preserve original creation time
         original_created_at = None
-        if os.path.exists(output_path) and format == "json":
+        if os.path.exists(output_path):
             try:
                 with open(output_path, 'r', encoding='utf-8') as f:
                     existing_data = json.load(f)
@@ -456,9 +495,6 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
             except Exception as e:
                 self.logger.warning(f"Could not read existing digest file: {e}, creating new one")
                 original_created_at = None
-        
-        # Generate fresh daily digests with ALL of today's data
-        digests = self.generate_daily_digests()
         
         # Create executive summary
         executive = self.create_executive_summary(digests)
@@ -482,63 +518,19 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
             export_data['updated'] = True
             export_data['last_updated'] = current_time
         
-        if format == "json":
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(export_data, f, indent=2, ensure_ascii=False)
-        
-        elif format == "markdown":
-            with open(output_path, 'w', encoding='utf-8') as f:
-                self._write_markdown_digest(f, export_data)
+        # Export as JSON
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
         
         action = "Updated" if original_created_at else "Created"
         self.logger.info(f"{action} daily digest: {output_path}")
         
-        # Auto-generate German rating report after JSON export
-        if format == "json":
-            try:
-                from news_pipeline.german_rating_formatter import format_daily_digest_to_german_markdown
-                german_report_path = format_daily_digest_to_german_markdown(output_path)
-                self.logger.info(f"Auto-generated German rating report: {german_report_path}")
-            except Exception as e:
-                self.logger.warning(f"Failed to generate German rating report: {e}")
+        # Auto-generate German rating report (this is the final desired output)
+        try:
+            from news_pipeline.german_rating_formatter import format_daily_digest_to_german_markdown
+            german_report_path = format_daily_digest_to_german_markdown(output_path)
+            self.logger.info(f"Auto-generated German rating report: {german_report_path}")
+        except Exception as e:
+            self.logger.warning(f"Failed to generate German rating report: {e}")
         
         return output_path
-    
-    def _write_markdown_digest(self, file, data: Dict[str, Any]):
-        """Write digest data in markdown format."""
-        file.write(f"# Swiss Business News Digest - {data['date']}\n\n")
-        
-        # Executive Summary
-        exec_summary = data['executive_summary']
-        file.write("## Executive Summary\n\n")
-        file.write(f"**{exec_summary['headline']}**\n\n")
-        file.write(f"{exec_summary['executive_summary']}\n\n")
-        
-        if exec_summary.get('key_themes'):
-            file.write("### Key Themes\n\n")
-            for theme in exec_summary['key_themes']:
-                file.write(f"- {theme}\n")
-            file.write("\n")
-        
-        # Trending Topics
-        if data['trending_topics']:
-            file.write("## Trending Topics\n\n")
-            for i, topic in enumerate(data['trending_topics'][:5], 1):
-                file.write(f"{i}. **{topic['topic']}** ({topic['article_count']} articles, "
-                          f"confidence: {topic['avg_confidence']:.2f})\n")
-            file.write("\n")
-        
-        # Topic Digests
-        file.write("## Topic Analysis\n\n")
-        for topic, digest in data['topic_digests'].items():
-            file.write(f"### {topic.replace('_', ' ').title()}\n\n")
-            file.write(f"**{digest['headline']}**\n\n")
-            file.write(f"{digest['why_it_matters']}\n\n")
-            
-            if digest.get('bullets'):
-                file.write("**Key Points:**\n\n")
-                for bullet in digest['bullets']:
-                    file.write(f"- {bullet}\n")
-                file.write("\n")
-            
-            file.write(f"*Based on {digest['article_count']} articles*\n\n")

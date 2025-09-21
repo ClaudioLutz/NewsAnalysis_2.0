@@ -396,12 +396,13 @@ Return the extracted text as plain text without any formatting or metadata."""
                 VALUES (?, ?, ?)
             """, (item_id, extracted_text, method))
             
-            # Update pipeline stage if run_id provided
+            # Update pipeline stage if run_id provided, but only if not already scraped
+            # This prevents "Invalid stage transition from scraped to scraped" trigger error
             if run_id:
                 conn.execute("""
                     UPDATE items 
                     SET pipeline_stage = 'scraped'
-                    WHERE id = ? AND pipeline_run_id = ?
+                    WHERE id = ? AND pipeline_run_id = ? AND pipeline_stage = 'selected'
                 """, (item_id, run_id))
             
             conn.commit()
@@ -658,8 +659,11 @@ Return the extracted text as plain text without any formatting or metadata."""
         """Clean up MCP resources."""
         if self.mcp_client:
             try:
-                if hasattr(self.mcp_client, 'close'):
-                    self.mcp_client.close()
+                # MCP client cleanup - try common cleanup methods
+                for cleanup_method in ['close', 'disconnect', 'cleanup']:
+                    if hasattr(self.mcp_client, cleanup_method):
+                        getattr(self.mcp_client, cleanup_method)()
+                        break
                 self.mcp_client = None
                 self.mcp_agent = None
             except Exception as e:
