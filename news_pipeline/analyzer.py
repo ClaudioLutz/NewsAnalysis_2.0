@@ -7,7 +7,7 @@ Aggregate intelligence using MODEL_MINI for comprehensive topic analysis.
 import os
 import json
 import sqlite3
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -28,36 +28,41 @@ class MetaAnalyzer:
         
         self.logger = logging.getLogger(__name__)
     
-    def get_recent_summaries(self, topic: str, days: int = 1, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        Get recent article summaries for a topic.
-        
-        Args:
-            topic: Topic to analyze
-            days: Number of days back to look
-            limit: Maximum number of summaries
-            
-        Returns:
-            List of article summaries
-        """
+    def get_recent_summaries(self, topic: str, days: int = 1, limit: int = 50, 
+                             run_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get summaries, optionally filtered by pipeline run."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
-        # Calculate date threshold
         cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
         
-        cursor = conn.execute("""
-            SELECT i.id, i.url, i.title, i.source, i.published_at,
-                   s.summary, s.key_points_json, s.entities_json
-            FROM items i
-            JOIN summaries s ON i.id = s.item_id
-            LEFT JOIN article_clusters ac ON i.id = ac.article_id
-            WHERE s.topic = ? 
-            AND (i.published_at >= ? OR s.created_at >= ?)
-            AND (ac.is_primary = 1 OR ac.article_id IS NULL)
-            ORDER BY i.triage_confidence DESC, s.created_at DESC
-            LIMIT ?
-        """, (topic, cutoff_date, cutoff_date, limit))
+        if run_id:
+            # Only summaries from this pipeline run
+            cursor = conn.execute("""
+                SELECT i.id, i.url, i.title, i.source, i.published_at,
+                       s.summary, s.key_points_json, s.entities_json
+                FROM items i
+                JOIN summaries s ON i.id = s.item_id
+                WHERE s.topic = ? 
+                AND i.pipeline_run_id = ?
+                AND (i.published_at >= ? OR s.created_at >= ?)
+                ORDER BY i.selection_rank, i.triage_confidence DESC
+                LIMIT ?
+            """, (topic, run_id, cutoff_date, cutoff_date, limit))
+        else:
+            # Original query for all summaries
+            cursor = conn.execute("""
+                SELECT i.id, i.url, i.title, i.source, i.published_at,
+                       s.summary, s.key_points_json, s.entities_json
+                FROM items i
+                JOIN summaries s ON i.id = s.item_id
+                LEFT JOIN article_clusters ac ON i.id = ac.article_id
+                WHERE s.topic = ? 
+                AND (i.published_at >= ? OR s.created_at >= ?)
+                AND (ac.is_primary = 1 OR ac.article_id IS NULL)
+                ORDER BY i.triage_confidence DESC, s.created_at DESC
+                LIMIT ?
+            """, (topic, cutoff_date, cutoff_date, limit))
         
         summaries = []
         for row in cursor.fetchall():
@@ -413,7 +418,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
                 'error': str(e)[:200]
             }
     
-    def export_daily_digest(self, output_path: str | None = None, format: str = "json") -> str:
+    def export_daily_digest(self, output_path: str | None = None, format: str = "json", run_id: str | None = None) -> str:
         """
         Export daily digest to file. If file exists for today, update with accumulated data.
         Also generates German rating agency report automatically.
@@ -421,6 +426,7 @@ Focus on strategic implications, cross-topic patterns, and actionable insights."
         Args:
             output_path: Output file path
             format: Export format ("json" or "markdown")
+            run_id: Optional pipeline run ID to filter summaries
             
         Returns:
             Path to exported file

@@ -816,8 +816,8 @@ Be selective - only mark articles that provide actionable business intelligence.
     
     def _select_top_articles(self, run_id: str) -> int:
         """
-        Select top N articles above threshold for processing.
-        This is the KEY function that controls what flows to scraping/summarization.
+        Select top N articles for processing.
+        CRITICAL: Excludes already-summarized articles!
         
         Args:
             run_id: Pipeline run identifier
@@ -827,12 +827,11 @@ Be selective - only mark articles that provide actionable business intelligence.
         """
         conn = sqlite3.connect(self.db_path)
         
-        # Get configuration
         config = self.pipeline_config['pipeline']['filtering']
         threshold = config.get('confidence_threshold', 0.70)
         max_articles = config.get('max_articles_to_process', 35)
         
-        # First, mark all articles as not selected
+        # Reset selection state
         conn.execute("""
             UPDATE items 
             SET selected_for_processing = 0,
@@ -844,20 +843,24 @@ Be selective - only mark articles that provide actionable business intelligence.
             WHERE pipeline_run_id = ?
         """, (run_id,))
         
-        # Get articles above threshold, ordered by confidence
+        # Select top articles that DON'T have summaries
         cursor = conn.execute("""
-            SELECT id, triage_confidence, title
-            FROM items 
-            WHERE pipeline_run_id = ? 
-            AND is_match = 1
-            AND triage_confidence >= ?
-            ORDER BY triage_confidence DESC, first_seen_at DESC
+            SELECT i.id, i.triage_confidence, i.title
+            FROM items i
+            LEFT JOIN summaries s ON i.id = s.item_id
+            LEFT JOIN articles a ON i.id = a.item_id
+            WHERE i.pipeline_run_id = ? 
+            AND i.is_match = 1
+            AND i.triage_confidence >= ?
+            AND s.item_id IS NULL  -- No existing summary
+            AND (a.item_id IS NULL OR a.failure_count < 3)  -- Not repeatedly failed
+            ORDER BY i.triage_confidence DESC, i.first_seen_at DESC
             LIMIT ?
         """, (run_id, threshold, max_articles))
         
         selected_articles = cursor.fetchall()
         
-        # Mark selected articles with their rank
+        # Mark selected articles with rank
         for rank, (article_id, confidence, title) in enumerate(selected_articles, 1):
             conn.execute("""
                 UPDATE items 
@@ -869,20 +872,27 @@ Be selective - only mark articles that provide actionable business intelligence.
             
             self.logger.info(f"Selected rank {rank}: {title[:60]}... (confidence: {confidence:.2f})")
         
-        # Mark non-selected matched articles
-        conn.execute("""
-            UPDATE items 
-            SET pipeline_stage = 'matched_not_selected'
-            WHERE pipeline_run_id = ?
-            AND is_match = 1
-            AND selected_for_processing = 0
-        """, (run_id,))
+        # Log excluded articles
+        cursor = conn.execute("""
+            SELECT 
+                COUNT(CASE WHEN s.item_id IS NOT NULL THEN 1 END) as already_summarized,
+                COUNT(CASE WHEN a.failure_count >= 3 THEN 1 END) as repeatedly_failed
+            FROM items i
+            LEFT JOIN summaries s ON i.id = s.item_id
+            LEFT JOIN articles a ON i.id = a.item_id
+            WHERE i.pipeline_run_id = ? 
+            AND i.is_match = 1
+            AND i.triage_confidence >= ?
+        """, (run_id, threshold))
+        
+        stats = cursor.fetchone()
+        if stats[0] > 0:
+            self.logger.info(f"Excluded {stats[0]} already-summarized articles")
+        if stats[1] > 0:
+            self.logger.info(f"Excluded {stats[1]} repeatedly-failed articles")
         
         conn.commit()
         conn.close()
-        
-        self.logger.info(f"Selected {len(selected_articles)} articles for processing "
-                        f"(threshold: {threshold}, max: {max_articles})")
         
         return len(selected_articles)
     

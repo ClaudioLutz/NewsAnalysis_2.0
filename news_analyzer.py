@@ -129,15 +129,15 @@ class NewsPipeline:
         log_step_complete(self.logger, "Article Summarization", duration, log_results)
         return results
     
-    def build_topic_digest(self, export_format: str = "json") -> str:
+    def build_topic_digest(self, export_format: str = "json", run_id: str | None = None) -> str:
         """Step 5: Meta-Summary Generation and Export."""
         start_time = time.time()
         
         log_step_start(self.logger, "STEP 5: Daily Digest Generation", 
                       f"Creating comprehensive daily digest in {export_format} format")
         
-        # Export daily digest
-        output_path = self.analyzer.export_daily_digest(format=export_format)
+        # Export daily digest with run_id context
+        output_path = self.analyzer.export_daily_digest(format=export_format, run_id=run_id)
         
         duration = time.time() - start_time
         log_results = {
@@ -200,17 +200,24 @@ class NewsPipeline:
         
         try:
             # Step 1: Collect URLs
+            # Track what's new before collection
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.execute("SELECT MAX(id) FROM items")
+            max_id_before = cursor.fetchone()[0] or 0
+            conn.close()
+            
             results['step1_collection'] = self.collector.collect_all()
             self.logger.info(f"Collected: {results['step1_collection'].get('total_collected', 0)} articles")
             
-            # Mark collected articles with run_id
+            # Mark ONLY newly collected articles
             conn = sqlite3.connect(self.db_path)
             conn.execute("""
                 UPDATE items 
                 SET pipeline_run_id = ?,
                     pipeline_stage = 'collected'
-                WHERE pipeline_run_id IS NULL
-            """, (self.current_run_id,))
+                WHERE id > ?
+                AND pipeline_run_id IS NULL
+            """, (self.current_run_id, max_id_before))
             conn.commit()
             conn.close()
             
@@ -240,7 +247,7 @@ class NewsPipeline:
             self.logger.info(f"Summarized: {results['step4_summarization'].get('summarized', 0)} articles")
             
             # Step 5: Generate Meta-Analysis
-            results['step5_export_path'] = self.build_topic_digest(export_format=export_format)
+            results['step5_export_path'] = self.build_topic_digest(export_format=export_format, run_id=self.current_run_id)
             
             # Get comprehensive pipeline stats
             results['pipeline_stats'] = self.get_enhanced_pipeline_stats(self.current_run_id)
@@ -256,6 +263,10 @@ class NewsPipeline:
             
             # Print selection report
             self.print_selection_report(self.current_run_id)
+            
+            # Validate pipeline flow
+            validation = self.validate_pipeline_flow(self.current_run_id)
+            results['pipeline_validation'] = validation
             
             self.logger.info(f"Pipeline completed successfully in {duration}")
             
@@ -424,6 +435,50 @@ class NewsPipeline:
         
         conn.close()
         print("="*70 + "\n")
+    
+    def validate_pipeline_flow(self, run_id: str) -> Dict[str, Any]:
+        """Validate pipeline flow and detect issues."""
+        conn = sqlite3.connect(self.db_path)
+        
+        validation = {}
+        
+        # Check for already-summarized articles being selected (MOST CRITICAL CHECK)
+        cursor = conn.execute("""
+            SELECT COUNT(*) FROM items i
+            JOIN summaries s ON i.id = s.item_id
+            WHERE i.pipeline_run_id = ? 
+            AND i.selected_for_processing = 1
+        """, (run_id,))
+        validation['error_selected_but_summarized'] = cursor.fetchone()[0]
+        
+        if validation['error_selected_but_summarized'] > 0:
+            self.logger.error(f"CRITICAL: {validation['error_selected_but_summarized']} "
+                             f"articles selected despite having summaries!")
+        
+        # Check stage consistency
+        cursor = conn.execute("""
+            SELECT pipeline_stage, COUNT(*) as count
+            FROM items 
+            WHERE pipeline_run_id = ?
+            GROUP BY pipeline_stage
+            ORDER BY pipeline_stage
+        """, (run_id,))
+        
+        validation['stage_counts'] = {}
+        for stage, count in cursor.fetchall():
+            validation['stage_counts'][stage or 'unknown'] = count
+        
+        # Overall validation status
+        validation['has_errors'] = validation['error_selected_but_summarized'] > 0
+        validation['has_warnings'] = False
+        validation['status'] = 'ERROR' if validation['has_errors'] else 'OK'
+        
+        conn.close()
+        
+        if validation['status'] != 'OK':
+            self.logger.info(f"Pipeline validation status: {validation['status']}")
+        
+        return validation
     
     def show_stats(self) -> dict:
         """Show comprehensive pipeline statistics."""

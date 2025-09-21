@@ -1,21 +1,17 @@
 pipeline:
   filtering:
-    confidence_threshold: 0.70  # Minimum confidence to consider
-    max_articles_to_process: 35  # Maximum articles to scrape/summarize
-    
-  topics:
-    creditreform_insights:
-      confidence_threshold: 0.71  # Override per topic if needed
-      max_articles: 35
-      
+    confidence_threshold: 0.8
+    max_articles_to_process: 5
+  reporting:
+    show_funnel_stats: true
+    show_selection_details: true
   scraping:
     max_retries: 3
     timeout: 30
-    
   summarization:
-    min_content_length: 600  # Minimum text length to summarize
-    max_summary_length: 500  # Maximum summary length
-    
-  reporting:
-    show_selection_details: true
-    show_funnel_stats: true
+    max_summary_length: 500
+    min_content_length: 600
+  topics:
+    creditreform_insights:
+      confidence_threshold: 0.71
+      max_articles: 35
