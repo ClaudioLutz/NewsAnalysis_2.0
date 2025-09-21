@@ -244,38 +244,83 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return results
     
-    def get_unfiltered_articles(self, force_refresh: bool = False, include_prefiltered: bool = False) -> List[Dict[str, Any]]:
-        """Get articles from database that haven't been filtered yet."""
+    def get_unfiltered_articles(self, force_refresh: bool = False, include_prefiltered: bool = False, 
+                              topic: str = None) -> List[Dict[str, Any]]:
+        """
+        Get articles from database that haven't been filtered yet.
+        
+        Args:
+            force_refresh: Re-process recent articles for testing
+            include_prefiltered: Include articles that were never AI-classified
+            topic: Topic name to read max_article_age_days configuration from
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
+        # Get max_article_age_days from topic configuration
+        max_article_age_days = None
+        if topic is not None and topic in self.topics_config['topics']:
+            max_article_age_days = self.topics_config['topics'][topic].get('max_article_age_days')
+        
+        # Calculate date filter if max_article_age_days is configured
+        date_filter = ""
+        date_params = []
+        if max_article_age_days is not None:
+            from datetime import datetime, timedelta
+            from zoneinfo import ZoneInfo
+            
+            # Swiss timezone
+            TZ = ZoneInfo("Europe/Zurich")
+            now = datetime.now(TZ)
+            
+            if max_article_age_days <= 0:
+                # "today only" - start from local midnight
+                cutoff_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                description = "today only (from midnight)"
+            else:
+                # last N days: start at local midnight N days ago
+                cutoff_date = (now - timedelta(days=max_article_age_days)).replace(hour=0, minute=0, second=0, microsecond=0)
+                description = f"last {max_article_age_days} day(s) (from midnight)"
+            
+            # Convert to ISO string for database comparison
+            cutoff_iso = cutoff_date.isoformat()
+            date_filter = "AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))"
+            date_params = [cutoff_iso, cutoff_iso]
+            self.logger.info(f"Date filtering enabled: articles {description} (since {cutoff_date.strftime('%Y-%m-%d %H:%M:%S %Z')})")
+        
         if force_refresh:
             # Re-process recent articles (last 3 days) for testing/refreshing
-            cursor = conn.execute("""
+            query = f"""
                 SELECT id, source, url, title, published_at, first_seen_at
                 FROM items 
                 WHERE first_seen_at > datetime('now', '-3 days')
+                {date_filter}
                 ORDER BY first_seen_at DESC
                 LIMIT 100
-            """)
+            """
+            cursor = conn.execute(query, date_params)
             self.logger.info("Force refresh mode: re-processing recent articles")
         elif include_prefiltered:
             # Include articles that were never AI-classified (only pre-filtered)
-            cursor = conn.execute("""
+            query = f"""
                 SELECT id, source, url, title, published_at, first_seen_at
                 FROM items 
                 WHERE triage_topic IS NULL 
+                {date_filter}
                 ORDER BY first_seen_at DESC
-            """)
+            """
+            cursor = conn.execute(query, date_params)
             self.logger.info("Including pre-filtered articles that were never AI-classified")
         else:
             # Normal mode: only unfiltered articles
-            cursor = conn.execute("""
+            query = f"""
                 SELECT id, source, url, title, published_at, first_seen_at
                 FROM items 
                 WHERE triage_topic IS NULL 
+                {date_filter}
                 ORDER BY first_seen_at DESC
-            """)
+            """
+            cursor = conn.execute(query, date_params)
         
         articles = []
         for row in cursor.fetchall():
@@ -289,6 +334,10 @@ Be precise and conservative - only mark as relevant if clearly related to the to
             })
         
         conn.close()
+        
+        if max_article_age_days is not None:
+            self.logger.info(f"Date filtering result: {len(articles)} articles found within {max_article_age_days} day(s)")
+        
         return articles
     
     def save_classification(self, article_id: int, topic: str, classification: Dict[str, Any]) -> None:
@@ -384,23 +433,6 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         log_step_start(self.logger, "Creditreform-Focused AI Filtering", 
                       f"Single-pass classification for actionable insights ({mode} mode)")
         
-        # Get unfiltered articles - include pre-filtered articles when skip_prefilter=True
-        if skip_prefilter:
-            # When skipping prefilter, we want articles that were never AI-classified (only pre-filtered)
-            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=True)
-        elif mode == "express":
-            # Express mode uses force refresh for testing
-            unfiltered = self.get_unfiltered_articles(force_refresh=True, include_prefiltered=False)
-        else:
-            # Standard mode gets only truly unprocessed articles
-            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=False)
-        
-        if not unfiltered:
-            self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
-            if not skip_prefilter and mode != "express":
-                self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
-            return {"creditreform_insights": {"processed": 0, "matched": 0}}
-        
         # Get active topics (only enabled ones)
         active_topics = {name: config for name, config in self.topics_config['topics'].items() 
                         if config.get('enabled', True)}
@@ -411,6 +443,25 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         # Use only creditreform_insights if available, otherwise use first active topic
         target_topic = "creditreform_insights" if "creditreform_insights" in active_topics else list(active_topics.keys())[0]
+        
+        # Get unfiltered articles - include pre-filtered articles when skip_prefilter=True
+        # Pass the target_topic to enable date filtering
+        if skip_prefilter:
+            # When skipping prefilter, we want articles that were never AI-classified (only pre-filtered)
+            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=True, topic=target_topic)
+        elif mode == "express":
+            # Express mode uses force refresh for testing
+            unfiltered = self.get_unfiltered_articles(force_refresh=True, include_prefiltered=False, topic=target_topic)
+        else:
+            # Standard mode gets only truly unprocessed articles
+            unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=False, topic=target_topic)
+        
+        if not unfiltered:
+            self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
+            if not skip_prefilter and mode != "express":
+                self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
+            return {"creditreform_insights": {"processed": 0, "matched": 0}}
+        
         topic_config = active_topics[target_topic]
         
         # Configuration - read skip_prefilter from topic config if not explicitly set
@@ -509,11 +560,6 @@ Be precise and conservative - only mark as relevant if clearly related to the to
                         high_confidence_matches += 1
                         title = article.get('title', '')[:60] + "..." if len(article.get('title', '')) > 60 else article.get('title', '')
                         self.logger.debug(f"   [HIGH] {title} ({classification['confidence']:.2f})")
-                    
-                    # Early termination if we have enough high-quality matches
-                    if matched_count >= early_terminate_at:
-                        self.logger.info(f"   [EARLY STOP] Found {matched_count} matches - terminating early for efficiency")
-                        break
             
             except Exception as e:
                 log_error_with_context(self.logger, e, f"Classification failed for article {i}")
@@ -689,6 +735,56 @@ Be selective - only mark articles that provide actionable business intelligence.
             })
         
         conn.close()
+        return articles
+    
+    def get_top_articles_by_confidence(self, topic: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get top X articles by confidence score for pipeline continuation.
+        This method is called AFTER all articles have been rated to select the best ones.
+        
+        Args:
+            topic: Specific topic to filter by
+            limit: Number of top articles to return
+            
+        Returns:
+            List of top articles ordered by confidence (highest first)
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        
+        # Get all matched articles for the topic, ordered by confidence
+        cursor = conn.execute("""
+            SELECT id, source, url, title, published_at, first_seen_at,
+                   triage_topic, triage_confidence
+            FROM items 
+            WHERE is_match = 1 AND triage_topic = ?
+            ORDER BY triage_confidence DESC, first_seen_at DESC
+            LIMIT ?
+        """, (topic, limit))
+        
+        articles = []
+        for row in cursor.fetchall():
+            articles.append({
+                'id': row['id'],
+                'source': row['source'],
+                'url': row['url'],
+                'title': row['title'],
+                'published_at': row['published_at'],
+                'first_seen_at': row['first_seen_at'],
+                'topic': row['triage_topic'],
+                'confidence': row['triage_confidence']
+            })
+        
+        conn.close()
+        
+        self.logger.info(f"Selected top {len(articles)} articles by confidence for pipeline continuation")
+        if articles:
+            self.logger.info(f"   [RANGE] Confidence range: {articles[0]['confidence']:.2f} to {articles[-1]['confidence']:.2f}")
+            # Log top 5 articles
+            for i, article in enumerate(articles[:5], 1):
+                title_short = article['title'][:50] + "..." if len(article['title']) > 50 else article['title']
+                self.logger.info(f"   [TOP {i}] {title_short} (confidence: {article['confidence']:.2f})")
+        
         return articles
     
     def get_stats(self) -> Dict[str, Any]:

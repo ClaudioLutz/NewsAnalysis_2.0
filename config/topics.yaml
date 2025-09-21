@@ -17,9 +17,12 @@ topics:
       Articles directly relevant to Creditreform's B2B credit risk, rating, and data business in Switzerland.
       Optimized for Product Manager/Data Analyst role with aggressive filtering for actionable insights only.
     
-    # Aggressive confidence threshold for quality over quantity
-    confidence_threshold: 0.80
-    max_articles_per_run: 15
+    # Lowered confidence threshold to allow more matches
+    confidence_threshold: 0.71
+    max_articles_per_run: 35
+    
+    # Article age filtering: only process articles published within the last N days (0 = same day only)
+    max_article_age_days: 0
     
     # Pre-filtering control: if true, skips priority-based pre-filtering and processes all deduplicated articles
     skip_prefilter: true
@@ -103,7 +106,7 @@ topics:
       title_url_gate_min_confidence: 0.80
       keep_if_entity_anchor_hit: true
       drop_if_exclude_keyword: true
-      early_termination_at: 15  # Stop when 15 high-quality matches found
+      early_termination_at: 100  # Stop when 100 high-quality matches found
 
   # Legacy topic (kept for reference, disabled)
   bonitaet_b2b_ch:
