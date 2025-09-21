@@ -31,18 +31,6 @@
 
 ---
 
-## Trending Topics
-
-{% if data.trending_topics %}
-{% for topic in data.trending_topics[:5] -%}
-{{ loop.index }}. **{{ topic.topic | topic_name }}** ({{ topic.article_count }} articles, confidence: {{ topic.avg_confidence | round(2) }})
-{% endfor %}
-{% else %}
-*No trending topics identified.*
-{% endif %}
-
----
-
 ## Topic Analysis
 
 {% for topic_name, digest in data.topic_digests.items() %}

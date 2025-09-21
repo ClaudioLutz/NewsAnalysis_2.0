@@ -1,7 +1,7 @@
 """
 MetaAnalyzer - Step 5: Meta-Summary Generation
 
-Aggregate intelligence using MODEL_MINI for comprehensive topic analysis.
+Aggregate intelligence using MODEL_FULL for comprehensive topic analysis.
 """
 
 import os
@@ -19,12 +19,12 @@ from openai import OpenAI
 
 
 class MetaAnalyzer:
-    """Aggregate analysis and meta-summary generation using MODEL_MINI."""
+    """Aggregate analysis and meta-summary generation using MODEL_FULL."""
     
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.client = OpenAI()
-        self.model = os.getenv("MODEL_MINI", "gpt-5-mini")
+        self.model = os.getenv("MODEL_FULL", "gpt-5")
         
         self.logger = logging.getLogger(__name__)
     

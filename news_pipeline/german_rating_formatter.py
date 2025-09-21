@@ -35,7 +35,7 @@ class GermanRatingFormatter:
         if OpenAI:
             try:
                 self.client = OpenAI()
-                self.model = os.getenv("MODEL_ANALYSIS", "gpt-4o")
+                self.model = os.getenv("MODEL_ANALYSIS", "gpt-5")
             except Exception as e:
                 self.logger.warning(f"OpenAI client initialization failed: {e}")
                 self.client = None
