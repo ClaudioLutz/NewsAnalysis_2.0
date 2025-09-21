@@ -10,9 +10,11 @@ import json
 import sqlite3
 import hashlib
 import logging
+import time
 from typing import Dict, List, Any, Tuple, Optional
 import re
 from datetime import datetime
+from dateutil import parser
 
 # Optional dependencies for enhanced similarity detection
 try:
@@ -265,7 +267,6 @@ class ArticleDeduplicator:
         pub_date = article.get('published_at') or article.get('first_seen_at')
         if pub_date:
             try:
-                from dateutil import parser
                 parsed_date = parser.parse(pub_date)
                 days_old = (datetime.now() - parsed_date.replace(tzinfo=None)).days
                 
@@ -597,6 +598,3 @@ class ArticleDeduplicator:
             'effective_articles': effective_articles,
             'deduplication_rate': f"{(duplicates_marked / total_matched * 100):.1f}%" if total_matched > 0 else "0%"
         }
-
-
-import time  # Add missing import

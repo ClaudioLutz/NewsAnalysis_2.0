@@ -68,7 +68,7 @@ class NewsCollector:
                     self.logger.warning(f"Feed parsing issues for {url}: {feed.bozo_exception}")
                     # Continue processing despite malformed XML - feedparser often recovers
                     if not feed.entries:
-                        self.logger.error(f"No entries found in malformed feed {url}, skipping")
+                        self.logger.warning(f"No entries found in malformed feed {url}, skipping (this is normal for some feeds)")
                         continue
                 
                 for entry in feed.entries[:self.max_items_per_feed]:

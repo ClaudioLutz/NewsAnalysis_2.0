@@ -281,11 +281,12 @@ Return the extracted text as plain text without any formatting or metadata."""
         if self.mcp_agent:
             try:
                 # Set a timeout to avoid hanging
-                extracted = asyncio.wait_for(
-                    self.scrape_with_mcp(resolved_url), 
-                    timeout=60.0
+                extracted = asyncio.run(
+                    asyncio.wait_for(
+                        self.scrape_with_mcp(resolved_url), 
+                        timeout=60.0
+                    )
                 )
-                extracted = asyncio.run(extracted)
                 if extracted:
                     return extracted, "playwright"
             except asyncio.TimeoutError:
@@ -326,7 +327,7 @@ Return the extracted text as plain text without any formatting or metadata."""
                   AND i.pipeline_stage = 'selected'
                   AND (a.item_id IS NULL OR (a.extracted_text IS NULL AND COALESCE(a.failure_count, 0) < 3))
             """
-            params: list[Any] = [run_id]
+            params: List[Any] = [run_id]
         else:
             # Legacy: Get all matched articles (for backward compatibility)
             base_query = """
@@ -657,7 +658,9 @@ Return the extracted text as plain text without any formatting or metadata."""
         """Clean up MCP resources."""
         if self.mcp_client:
             try:
-                # Close MCP client connection if needed
-                pass
+                if hasattr(self.mcp_client, 'close'):
+                    self.mcp_client.close()
+                self.mcp_client = None
+                self.mcp_agent = None
             except Exception as e:
                 self.logger.warning(f"Error cleaning up MCP client: {e}")

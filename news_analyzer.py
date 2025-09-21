@@ -211,17 +211,24 @@ class NewsPipeline:
             results['step1_collection'] = self.collector.collect_all()
             self.logger.info(f"Collected: {results['step1_collection'].get('total_collected', 0)} articles")
             
-            # Mark ONLY newly collected articles
+            # Mark ONLY newly collected articles (avoid updating articles already in 'collected' state)
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
-                UPDATE items 
-                SET pipeline_run_id = ?,
-                    pipeline_stage = 'collected'
-                WHERE id > ?
-                AND pipeline_run_id IS NULL
-            """, (self.current_run_id, max_id_before))
-            conn.commit()
-            conn.close()
+            try:
+                conn.execute("""
+                    UPDATE items 
+                    SET pipeline_run_id = ?,
+                        pipeline_stage = 'collected'
+                    WHERE id > ?
+                    AND pipeline_run_id IS NULL
+                    AND (pipeline_stage IS NULL OR pipeline_stage != 'collected')
+                """, (self.current_run_id, max_id_before))
+                conn.commit()
+            except Exception as e:
+                self.logger.error(f"Error updating pipeline stage: {e}")
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
             
             # Step 1.5: Deduplication (NEW - integrate existing module)
             try:
