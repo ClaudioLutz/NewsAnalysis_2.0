@@ -33,6 +33,7 @@ from news_pipeline import (
     NewsCollector, AIFilter, ContentScraper, 
     ArticleSummarizer, MetaAnalyzer
 )
+from news_pipeline.deduplication import ArticleDeduplicator
 from news_pipeline.state_manager import PipelineStateManager as StateManager
 from news_pipeline.utils import (
     setup_logging, log_step_start, log_step_complete, 
@@ -57,6 +58,7 @@ class NewsPipeline:
         self.summarizer = ArticleSummarizer(self.db_path)
         self.analyzer = MetaAnalyzer(self.db_path)
         self.state_manager = StateManager(self.db_path)
+        self.deduplicator = ArticleDeduplicator(self.db_path)
         
         # Track current pipeline run
         self.current_run_id = None
@@ -220,6 +222,16 @@ class NewsPipeline:
             """, (self.current_run_id, max_id_before))
             conn.commit()
             conn.close()
+            
+            # Step 1.5: Deduplication (NEW - integrate existing module)
+            try:
+                self.logger.info("Running semantic deduplication on newly collected articles...")
+                dedup_results = self.deduplicator.deduplicate_articles(limit=1000)
+                results['step1_5_deduplication'] = dedup_results
+                self.logger.info(f"Deduplication: {dedup_results.get('duplicates_marked', 0)} duplicates marked from {dedup_results.get('clusters_found', 0)} clusters")
+            except Exception as e:
+                self.logger.warning(f"Deduplication failed: {e}, continuing pipeline...")
+                results['step1_5_deduplication'] = {"error": str(e)}
             
             # Step 2: AI Filter AND Select top N
             results['step2_filtering'] = self.filter.filter_for_run(
