@@ -8,7 +8,7 @@ import os
 import json
 import sqlite3
 import yaml
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import logging
 from dotenv import load_dotenv
 
@@ -27,7 +27,8 @@ from .utils import url_hash
 class AIFilter:
     """AI-powered relevance filtering using MODEL_NANO."""
     
-    def __init__(self, db_path: str, topics_config_path: str = "config/topics.yaml"):
+    def __init__(self, db_path: str, topics_config_path: str = "config/topics.yaml", 
+                 pipeline_config_path: str = "config/pipeline_config.yaml"):
         self.db_path = db_path
         self.client = OpenAI()
         self.model = os.getenv("MODEL_NANO", "gpt-5-nano")
@@ -42,6 +43,21 @@ class AIFilter:
         # Load triage schema
         with open("schemas/triage.schema.json", 'r', encoding='utf-8') as f:
             self.triage_schema = json.load(f)
+            
+        # Load pipeline configuration
+        try:
+            with open(pipeline_config_path, 'r', encoding='utf-8') as f:
+                self.pipeline_config = yaml.safe_load(f)
+        except FileNotFoundError:
+            self.logger.warning(f"Pipeline config not found at {pipeline_config_path}, using defaults")
+            self.pipeline_config = {
+                'pipeline': {
+                    'filtering': {
+                        'confidence_threshold': 0.70,
+                        'max_articles_to_process': 35
+                    }
+                }
+            }
     
     def is_url_already_processed(self, url: str, topic: str) -> bool:
         """Check if a URL has already been processed for a given topic."""
@@ -340,29 +356,6 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return articles
     
-    def save_classification(self, article_id: int, topic: str, classification: Dict[str, Any]) -> None:
-        """Save classification result to database."""
-        conn = sqlite3.connect(self.db_path)
-        
-        try:
-            conn.execute("""
-                UPDATE items 
-                SET triage_topic = ?, 
-                    triage_confidence = ?, 
-                    is_match = ?
-                WHERE id = ?
-            """, (
-                topic,
-                classification['confidence'],
-                1 if classification['is_match'] else 0,
-                article_id
-            ))
-            conn.commit()
-            
-        except Exception as e:
-            self.logger.error(f"Error saving classification for article {article_id}: {e}")
-        finally:
-            conn.close()
     
     def calculate_priority_score(self, article: Dict[str, Any]) -> float:
         """
@@ -786,6 +779,160 @@ Be selective - only mark articles that provide actionable business intelligence.
                 self.logger.info(f"   [TOP {i}] {title_short} (confidence: {article['confidence']:.2f})")
         
         return articles
+    
+    def filter_for_run(self, run_id: str, mode: str = "standard") -> Dict[str, Any]:
+        """
+        Filter articles and select top N by confidence for a specific pipeline run.
+        
+        Args:
+            run_id: Pipeline run identifier
+            mode: Processing mode (standard/express)
+            
+        Returns:
+            Results dictionary including selected article count
+        """
+        # Step 1: Run classification (existing logic)
+        results = self.filter_for_creditreform(mode)
+        
+        # Step 2: Mark articles with pipeline run ID
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("""
+            UPDATE items 
+            SET pipeline_run_id = ?
+            WHERE triage_topic IS NOT NULL 
+            AND pipeline_run_id IS NULL
+        """, (run_id,))
+        conn.commit()
+        conn.close()
+        
+        # Step 3: Select top articles by confidence
+        selected_count = self._select_top_articles(run_id)
+        
+        # Add selection info to results
+        for topic, topic_results in results.items():
+            topic_results['selected_for_processing'] = selected_count
+            
+        return results
+    
+    def _select_top_articles(self, run_id: str) -> int:
+        """
+        Select top N articles above threshold for processing.
+        This is the KEY function that controls what flows to scraping/summarization.
+        
+        Args:
+            run_id: Pipeline run identifier
+            
+        Returns:
+            Number of articles selected
+        """
+        conn = sqlite3.connect(self.db_path)
+        
+        # Get configuration
+        config = self.pipeline_config['pipeline']['filtering']
+        threshold = config.get('confidence_threshold', 0.70)
+        max_articles = config.get('max_articles_to_process', 35)
+        
+        # First, mark all articles as not selected
+        conn.execute("""
+            UPDATE items 
+            SET selected_for_processing = 0,
+                selection_rank = NULL,
+                pipeline_stage = CASE 
+                    WHEN is_match = 1 THEN 'matched'
+                    ELSE 'filtered_out'
+                END
+            WHERE pipeline_run_id = ?
+        """, (run_id,))
+        
+        # Get articles above threshold, ordered by confidence
+        cursor = conn.execute("""
+            SELECT id, triage_confidence, title
+            FROM items 
+            WHERE pipeline_run_id = ? 
+            AND is_match = 1
+            AND triage_confidence >= ?
+            ORDER BY triage_confidence DESC, first_seen_at DESC
+            LIMIT ?
+        """, (run_id, threshold, max_articles))
+        
+        selected_articles = cursor.fetchall()
+        
+        # Mark selected articles with their rank
+        for rank, (article_id, confidence, title) in enumerate(selected_articles, 1):
+            conn.execute("""
+                UPDATE items 
+                SET selected_for_processing = 1,
+                    selection_rank = ?,
+                    pipeline_stage = 'selected'
+                WHERE id = ? AND pipeline_run_id = ?
+            """, (rank, article_id, run_id))
+            
+            self.logger.info(f"Selected rank {rank}: {title[:60]}... (confidence: {confidence:.2f})")
+        
+        # Mark non-selected matched articles
+        conn.execute("""
+            UPDATE items 
+            SET pipeline_stage = 'matched_not_selected'
+            WHERE pipeline_run_id = ?
+            AND is_match = 1
+            AND selected_for_processing = 0
+        """, (run_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        self.logger.info(f"Selected {len(selected_articles)} articles for processing "
+                        f"(threshold: {threshold}, max: {max_articles})")
+        
+        return len(selected_articles)
+    
+    def save_classification(self, article_id: int, topic: str, classification: Dict[str, Any], 
+                           run_id: Optional[str] = None) -> None:
+        """Save classification result to database."""
+        conn = sqlite3.connect(self.db_path)
+        
+        try:
+            if run_id:
+                # Include pipeline run ID and stage
+                conn.execute("""
+                    UPDATE items 
+                    SET triage_topic = ?, 
+                        triage_confidence = ?, 
+                        is_match = ?,
+                        pipeline_run_id = ?,
+                        pipeline_stage = CASE 
+                            WHEN ? = 1 THEN 'matched'
+                            ELSE 'filtered_out'
+                        END
+                    WHERE id = ?
+                """, (
+                    topic,
+                    classification['confidence'],
+                    1 if classification['is_match'] else 0,
+                    run_id,
+                    1 if classification['is_match'] else 0,
+                    article_id
+                ))
+            else:
+                # Original logic without run_id
+                conn.execute("""
+                    UPDATE items 
+                    SET triage_topic = ?, 
+                        triage_confidence = ?, 
+                        is_match = ?
+                    WHERE id = ?
+                """, (
+                    topic,
+                    classification['confidence'],
+                    1 if classification['is_match'] else 0,
+                    article_id
+                ))
+            conn.commit()
+            
+        except Exception as e:
+            self.logger.error(f"Error saving classification for article {article_id}: {e}")
+        finally:
+            conn.close()
     
     def get_stats(self) -> Dict[str, Any]:
         """Get filtering statistics."""

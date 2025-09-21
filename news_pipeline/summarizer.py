@@ -119,41 +119,85 @@ Be precise, factual, and focus on business/financial significance."""
                 "error": str(e)[:200]
             }
     
-    def get_articles_to_summarize(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get extracted articles that need summarization."""
+    def get_articles_to_summarize(self, limit: int = 50, run_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get extracted articles that need summarization.
+        
+        Args:
+            limit: Maximum number of articles to return
+            run_id: If provided, only get selected articles from this run
+            
+        Returns:
+            List of articles to summarize
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
-        cursor = conn.execute("""
-            SELECT i.id, i.url, i.title, i.source, i.triage_topic, 
-                   a.extracted_text, a.method
-            FROM items i
-            JOIN articles a ON i.id = a.item_id
-            LEFT JOIN summaries s ON i.id = s.item_id
-            WHERE i.is_match = 1 
-            AND s.item_id IS NULL
-            AND LENGTH(a.extracted_text) >= 600
-            ORDER BY i.triage_confidence DESC, a.extracted_at DESC
-            LIMIT ?
-        """, (limit,))
+        if run_id:
+            # NEW: Only get selected & scraped articles from a specific pipeline run
+            cursor = conn.execute("""
+                SELECT i.id, i.url, i.title, i.source, i.triage_topic, 
+                       i.triage_confidence, i.selection_rank,
+                       a.extracted_text, a.extraction_method
+                FROM items i
+                JOIN articles a ON i.id = a.item_id
+                LEFT JOIN summaries s ON i.id = s.item_id
+                WHERE i.pipeline_run_id = ?
+                  AND i.selected_for_processing = 1
+                  AND i.pipeline_stage = 'scraped'
+                  AND s.item_id IS NULL
+                  AND LENGTH(a.extracted_text) >= 600
+                ORDER BY i.selection_rank, i.triage_confidence DESC
+                LIMIT ?
+            """, (run_id, limit))
+        else:
+            # Legacy: Get all matched articles (for backward compatibility)
+            cursor = conn.execute("""
+                SELECT i.id, i.url, i.title, i.source, i.triage_topic, 
+                       a.extracted_text, a.extraction_method
+                FROM items i
+                JOIN articles a ON i.id = a.item_id
+                LEFT JOIN summaries s ON i.id = s.item_id
+                WHERE i.is_match = 1 
+                AND s.item_id IS NULL
+                AND LENGTH(a.extracted_text) >= 600
+                ORDER BY i.triage_confidence DESC, a.extracted_at DESC
+                LIMIT ?
+            """, (limit,))
         
         articles = []
         for row in cursor.fetchall():
-            articles.append({
+            article = {
                 'id': row['id'],
                 'url': row['url'],
                 'title': row['title'],
                 'source': row['source'],
                 'topic': row['triage_topic'],
                 'extracted_text': row['extracted_text'],
-                'extraction_method': row['method']
-            })
+                'extraction_method': row['extraction_method'] if run_id else row['method']
+            }
+            
+            # Add rank and confidence if available
+            if run_id:
+                article['confidence'] = row['triage_confidence']
+                article['rank'] = row['selection_rank']
+            
+            articles.append(article)
         
         conn.close()
+        
+        if run_id:
+            self.logger.info(f"Found {len(articles)} scraped articles to summarize for run {run_id}")
+            if articles and 'rank' in articles[0]:
+                self.logger.debug(f"Articles ordered by selection rank: {[a['rank'] for a in articles[:5]]}")
+        else:
+            self.logger.debug(f"Found {len(articles)} articles that need summarization")
+            
         return articles
     
-    def save_summary(self, item_id: int, summary_data: Dict[str, Any], topic: str) -> bool:
-        """Save article summary to database."""
+    def save_summary(self, item_id: int, summary_data: Dict[str, Any], topic: str, 
+                    run_id: Optional[str] = None) -> bool:
+        """Save article summary to database and update pipeline stage."""
         conn = sqlite3.connect(self.db_path)
         
         try:
@@ -173,6 +217,14 @@ Be precise, factual, and focus on business/financial significance."""
                 key_points_json,
                 entities_json
             ))
+            
+            # Update pipeline stage if run_id provided
+            if run_id:
+                conn.execute("""
+                    UPDATE items 
+                    SET pipeline_stage = 'summarized'
+                    WHERE id = ? AND pipeline_run_id = ?
+                """, (item_id, run_id))
             
             conn.commit()
             self.logger.debug(f"Saved summary for article {item_id}")
@@ -194,6 +246,46 @@ Be precise, factual, and focus on business/financial significance."""
         Returns:
             Results summary
         """
+        return self._summarize_impl(limit, run_id=None)
+    
+    def summarize_for_run(self, run_id: str, limit: Optional[int] = None) -> Dict[str, int]:
+        """
+        Summarize articles for a specific pipeline run.
+        
+        Args:
+            run_id: Pipeline run identifier
+            limit: Maximum number of articles to process (default: from config)
+            
+        Returns:
+            Results summary including selected article statistics
+        """
+        if limit is None:
+            # Use max_articles from config
+            import yaml
+            try:
+                with open("config/pipeline_config.yaml", 'r') as f:
+                    config = yaml.safe_load(f)
+                    limit = config['pipeline']['filtering'].get('max_articles_to_process', 35)
+            except:
+                limit = 35
+        
+        # Ensure limit is not None for type safety
+        limit_value: int = limit if limit is not None else 35
+        
+        self.logger.info(f"Starting summarization for pipeline run {run_id} (limit: {limit_value})")
+        return self._summarize_impl(limit_value, run_id)
+    
+    def _summarize_impl(self, limit: int, run_id: Optional[str]) -> Dict[str, int]:
+        """
+        Internal implementation of article summarization.
+        
+        Args:
+            limit: Maximum number of articles to process
+            run_id: Pipeline run identifier (if processing selected articles)
+            
+        Returns:
+            Results summary
+        """
         results = {
             'processed': 0,
             'summarized': 0,
@@ -202,17 +294,20 @@ Be precise, factual, and focus on business/financial significance."""
         }
         
         # Get articles to summarize
-        articles = self.get_articles_to_summarize(limit)
+        articles = self.get_articles_to_summarize(limit, run_id)
         if not articles:
             self.logger.info("No articles found that need summarization")
             return results
         
-        self.logger.info(f"Summarizing {len(articles)} articles")
+        self.logger.info(f"Summarizing {len(articles)} {'selected' if run_id else ''} articles")
         
         total_summary_length = 0
         
-        for article in articles:
-            self.logger.info(f"Summarizing: {article['title'][:100]}...")
+        for i, article in enumerate(articles, 1):
+            if 'rank' in article:
+                self.logger.info(f"Summarizing {i}/{len(articles)} [Rank {article['rank']}]: {article['title'][:100]}...")
+            else:
+                self.logger.info(f"Summarizing {i}/{len(articles)}: {article['title'][:100]}...")
             
             # Generate summary
             summary_data = self.summarize_article(
@@ -224,8 +319,8 @@ Be precise, factual, and focus on business/financial significance."""
             results['processed'] += 1
             
             if 'error' not in summary_data and summary_data.get('summary'):
-                # Save summary
-                if self.save_summary(article['id'], summary_data, article['topic']):
+                # Save summary with run_id to update pipeline stage
+                if self.save_summary(article['id'], summary_data, article['topic'], run_id):
                     results['summarized'] += 1
                     total_summary_length += len(summary_data['summary'])
                     
@@ -233,6 +328,7 @@ Be precise, factual, and focus on business/financial significance."""
                                     f"{len(summary_data.get('key_points', []))} key points")
             else:
                 results['failed'] += 1
+                self.logger.warning(f"Failed to summarize article {article['id']}: {summary_data.get('error', 'Unknown error')}")
         
         # Calculate average summary length
         if results['summarized'] > 0:

@@ -297,59 +297,111 @@ Return the extracted text as plain text without any formatting or metadata."""
         self.logger.warning(f"Content extraction failed for {resolved_url}")
         return None, "failed"
     
-    def get_articles_to_scrape(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get matched articles that need content extraction, excluding failed articles."""
+    def get_articles_to_scrape(self, limit: int = 50, run_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get articles that need content extraction.
+        
+        Args:
+            limit: Maximum number of articles to return
+            run_id: If provided, only get selected articles from this run
+            
+        Returns:
+            List of articles to scrape
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
         # Build query, optionally excluding Google News redirects when skip flag is enabled
         skip_gnews = os.getenv("SKIP_GNEWS_REDIRECTS", "true").lower() in ("1", "true", "yes", "on")
-        base_query = """
-            SELECT i.id, i.url, i.title, i.source, i.triage_topic
-            FROM items i
-            LEFT JOIN articles a ON i.id = a.item_id
-            WHERE i.is_match = 1
-              AND (a.item_id IS NULL OR (a.extracted_text IS NULL AND COALESCE(a.failure_count, 0) < 3))
-        """
-        params: list[Any] = []
+        
+        if run_id:
+            # NEW: Only get selected articles from a specific pipeline run
+            base_query = """
+                SELECT i.id, i.url, i.title, i.source, i.triage_topic, 
+                       i.triage_confidence, i.selection_rank
+                FROM items i
+                LEFT JOIN articles a ON i.id = a.item_id
+                WHERE i.pipeline_run_id = ?
+                  AND i.selected_for_processing = 1
+                  AND i.pipeline_stage = 'selected'
+                  AND (a.item_id IS NULL OR (a.extracted_text IS NULL AND COALESCE(a.failure_count, 0) < 3))
+            """
+            params: list[Any] = [run_id]
+        else:
+            # Legacy: Get all matched articles (for backward compatibility)
+            base_query = """
+                SELECT i.id, i.url, i.title, i.source, i.triage_topic
+                FROM items i
+                LEFT JOIN articles a ON i.id = a.item_id
+                WHERE i.is_match = 1
+                  AND (a.item_id IS NULL OR (a.extracted_text IS NULL AND COALESCE(a.failure_count, 0) < 3))
+            """
+            params = []
+        
         if skip_gnews:
             # Exclude Google News redirect URLs to allow non-GNews items to fill the batch
             base_query += " AND i.url NOT LIKE ?"
             params.append("%news.google.com/rss/articles/%")
-
-        base_query += """
-            ORDER BY i.triage_confidence DESC, i.first_seen_at DESC
-            LIMIT ?
-        """
+        
+        # Order by selection rank if available, otherwise by confidence
+        if run_id:
+            base_query += " ORDER BY i.selection_rank, i.triage_confidence DESC"
+        else:
+            base_query += " ORDER BY i.triage_confidence DESC, i.first_seen_at DESC"
+        
+        base_query += " LIMIT ?"
         params.append(limit)
-
+        
         cursor = conn.execute(base_query, tuple(params))
         
         articles = []
         for row in cursor.fetchall():
-            articles.append({
+            article = {
                 'id': row['id'],
                 'url': row['url'],
                 'title': row['title'],
                 'source': row['source'],
                 'topic': row['triage_topic']
-            })
+            }
+            
+            # Add rank and confidence if available
+            if run_id:
+                article['confidence'] = row['triage_confidence']
+                article['rank'] = row['selection_rank']
+            
+            articles.append(article)
         
         conn.close()
         
         # Log what we found for debugging
-        self.logger.debug(f"Found {len(articles)} articles that need scraping (excluding failed articles)")
+        if run_id:
+            self.logger.info(f"Found {len(articles)} selected articles to scrape for run {run_id}")
+            if articles and 'rank' in articles[0]:
+                self.logger.debug(f"Articles ordered by selection rank: {[a['rank'] for a in articles[:5]]}")
+        else:
+            self.logger.debug(f"Found {len(articles)} articles that need scraping")
+        
         return articles
     
-    def save_extracted_content(self, item_id: int, extracted_text: str, method: str) -> bool:
-        """Save extracted content to database."""
+    def save_extracted_content(self, item_id: int, extracted_text: str, method: str, 
+                              run_id: Optional[str] = None) -> bool:
+        """Save extracted content to database and update pipeline stage."""
         conn = sqlite3.connect(self.db_path)
         
         try:
+            # Save extracted content
             conn.execute("""
                 INSERT OR REPLACE INTO articles (item_id, extracted_text, extraction_method)
                 VALUES (?, ?, ?)
             """, (item_id, extracted_text, method))
+            
+            # Update pipeline stage if run_id provided
+            if run_id:
+                conn.execute("""
+                    UPDATE items 
+                    SET pipeline_stage = 'scraped'
+                    WHERE id = ? AND pipeline_run_id = ?
+                """, (item_id, run_id))
             
             conn.commit()
             self.logger.debug(f"Saved extracted content for article {item_id} using {method}")
@@ -407,6 +459,46 @@ Return the extracted text as plain text without any formatting or metadata."""
         Returns:
             Results summary
         """
+        return self._scrape_articles_impl(limit, run_id=None)
+    
+    def scrape_for_run(self, run_id: str, limit: Optional[int] = None) -> Dict[str, int]:
+        """
+        Scrape content for selected articles in a specific pipeline run.
+        
+        Args:
+            run_id: Pipeline run identifier
+            limit: Maximum number of articles to process (default: from config)
+            
+        Returns:
+            Results summary including selected article statistics
+        """
+        if limit is None:
+            # Use max_articles from config
+            import yaml
+            try:
+                with open("config/pipeline_config.yaml", 'r') as f:
+                    config = yaml.safe_load(f)
+                    limit = config['pipeline']['filtering'].get('max_articles_to_process', 35)
+            except:
+                limit = 35
+        
+        # Ensure limit is not None for type safety
+        limit_value: int = limit if limit is not None else 35
+        
+        self.logger.info(f"Starting scraping for pipeline run {run_id} (limit: {limit_value})")
+        return self._scrape_articles_impl(limit_value, run_id)
+    
+    def _scrape_articles_impl(self, limit: int, run_id: Optional[str]) -> Dict[str, int]:
+        """
+        Internal implementation of article scraping.
+        
+        Args:
+            limit: Maximum number of articles to process
+            run_id: Pipeline run identifier (if processing selected articles)
+            
+        Returns:
+            Results summary
+        """
         results = {
             'processed': 0,
             'extracted': 0,
@@ -418,15 +510,18 @@ Return the extracted text as plain text without any formatting or metadata."""
         }
         
         # Get articles to scrape
-        articles = self.get_articles_to_scrape(limit)
+        articles = self.get_articles_to_scrape(limit, run_id)
         if not articles:
             self.logger.info("No articles found that need scraping")
             return results
         
-        self.logger.info(f"Scraping content from {len(articles)} articles")
+        self.logger.info(f"Scraping content from {len(articles)} {'selected' if run_id else ''} articles")
         
         for i, article in enumerate(articles, 1):
-            self.logger.info(f"Scraping {i}/{len(articles)}: {article['title'][:100]}...")
+            if 'rank' in article:
+                self.logger.info(f"Scraping {i}/{len(articles)} [Rank {article['rank']}]: {article['title'][:100]}...")
+            else:
+                self.logger.info(f"Scraping {i}/{len(articles)}: {article['title'][:100]}...")
             
             # CRITICAL FIX: Reinitialize MCP agent every 3 articles to prevent browser session issues
             if i % 3 == 1 and self.mcp_client:  # Reinitialize on articles 1, 4, 7, etc.
@@ -446,8 +541,8 @@ Return the extracted text as plain text without any formatting or metadata."""
                     self.mark_article_failed(article['id'], f"content_too_short_{len(extracted_text)}_chars")
                     continue
                 
-                # Save to database
-                if self.save_extracted_content(article['id'], extracted_text, method):
+                # Save to database with run_id to update pipeline stage
+                if self.save_extracted_content(article['id'], extracted_text, method, run_id):
                     results['extracted'] += 1
                     results[method] += 1
                     self.logger.debug(f"Extracted {len(extracted_text)} chars using {method}")

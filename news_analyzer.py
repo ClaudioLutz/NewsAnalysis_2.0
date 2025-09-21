@@ -33,11 +33,14 @@ from news_pipeline import (
     NewsCollector, AIFilter, ContentScraper, 
     ArticleSummarizer, MetaAnalyzer
 )
+from news_pipeline.state_manager import PipelineStateManager as StateManager
 from news_pipeline.utils import (
     setup_logging, log_step_start, log_step_complete, 
-    log_error_with_context, format_number
+    log_error_with_context, format_number, format_rate
 )
 import time
+import sqlite3
+from typing import Dict, Any
 
 
 class NewsPipeline:
@@ -53,6 +56,10 @@ class NewsPipeline:
         self.scraper = ContentScraper(self.db_path)
         self.summarizer = ArticleSummarizer(self.db_path)
         self.analyzer = MetaAnalyzer(self.db_path)
+        self.state_manager = StateManager(self.db_path)
+        
+        # Track current pipeline run
+        self.current_run_id = None
         
         self.logger.info("News Analysis Pipeline initialized")
     
@@ -156,48 +163,106 @@ class NewsPipeline:
             return "Unknown"
     
     def run_full_pipeline(self, scrape_limit: int = 50, summarize_limit: int = 50, 
-                         export_format: str = "json", skip_prefilter: bool = False) -> dict:
+                         export_format: str = "json", skip_prefilter: bool = False,
+                         confidence_threshold: float | None = None, max_articles: int | None = None) -> dict:
         """
-        Run the complete 5-step pipeline.
+        Run the complete 5-step pipeline with confidence-based selection.
         
         Args:
-            scrape_limit: Max articles to scrape
-            summarize_limit: Max articles to summarize
+            scrape_limit: Max articles to scrape (deprecated, use max_articles)
+            summarize_limit: Max articles to summarize (deprecated, use max_articles)
             export_format: Export format ("json" or "markdown")
             skip_prefilter: If True, bypass priority-based pre-filtering
+            confidence_threshold: Minimum confidence for article selection
+            max_articles: Maximum number of articles to process through pipeline
             
         Returns:
             Summary of all pipeline results
         """
         start_time = datetime.now()
-        self.logger.info("Starting full news analysis pipeline...")
+        self.logger.info("Starting full news analysis pipeline with confidence-based selection...")
         
-        results = {}
+        # Override config if parameters provided
+        if confidence_threshold or max_articles:
+            self._override_config(confidence_threshold, max_articles)
+        
+        # Use max_articles if provided, otherwise fall back to scrape_limit
+        limit = max_articles or scrape_limit
+        
+        # Start a new pipeline run
+        self.current_run_id = self.state_manager.start_pipeline_run("standard")
+        self.logger.info(f"Pipeline run ID: {self.current_run_id}")
+        
+        results: Dict[str, Any] = {
+            'run_id': self.current_run_id,
+            'start_time': start_time.isoformat()
+        }
         
         try:
             # Step 1: Collect URLs
-            results['step1_collection'] = self.collect_urls()
+            results['step1_collection'] = self.collector.collect_all()
+            self.logger.info(f"Collected: {results['step1_collection'].get('total_collected', 0)} articles")
             
-            # Step 2: AI Filter
-            results['step2_filtering'] = self.triage_with_model_mini(skip_prefilter=skip_prefilter)
+            # Mark collected articles with run_id
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("""
+                UPDATE items 
+                SET pipeline_run_id = ?,
+                    pipeline_stage = 'collected'
+                WHERE pipeline_run_id IS NULL
+            """, (self.current_run_id,))
+            conn.commit()
+            conn.close()
             
-            # Step 3: Scrape Content  
-            results['step3_scraping'] = self.scrape_selected(limit=scrape_limit)
+            # Step 2: AI Filter AND Select top N
+            results['step2_filtering'] = self.filter.filter_for_run(
+                run_id=self.current_run_id,
+                mode='standard'
+            )
             
-            # Step 4: Summarize Articles
-            results['step4_summarization'] = self.summarize_articles(limit=summarize_limit)
+            # Get the main topic results (creditreform_insights)
+            topic_results = results['step2_filtering'].get('creditreform_insights', {})
+            self.logger.info(f"Matched: {topic_results.get('matched', 0)} articles")
+            self.logger.info(f"Selected for processing: {topic_results.get('selected_for_processing', 0)} articles")
+            
+            # Step 3: Scrape ONLY selected articles  
+            results['step3_scraping'] = self.scraper.scrape_for_run(
+                run_id=self.current_run_id,
+                limit=limit
+            )
+            self.logger.info(f"Scraped: {results['step3_scraping'].get('extracted', 0)} articles")
+            
+            # Step 4: Summarize ONLY scraped selected articles
+            results['step4_summarization'] = self.summarizer.summarize_for_run(
+                run_id=self.current_run_id,
+                limit=limit
+            )
+            self.logger.info(f"Summarized: {results['step4_summarization'].get('summarized', 0)} articles")
             
             # Step 5: Generate Meta-Analysis
             results['step5_export_path'] = self.build_topic_digest(export_format=export_format)
+            
+            # Get comprehensive pipeline stats
+            results['pipeline_stats'] = self.get_enhanced_pipeline_stats(self.current_run_id)
+            
+            # Complete the pipeline run (mark analysis step as complete)
+            self.state_manager.complete_step(self.current_run_id, 'analysis', 
+                                            results['step4_summarization'].get('summarized', 0),
+                                            topic_results.get('matched', 0))
             
             # Calculate total time
             duration = datetime.now() - start_time
             results['total_duration'] = str(duration)
             
+            # Print selection report
+            self.print_selection_report(self.current_run_id)
+            
             self.logger.info(f"Pipeline completed successfully in {duration}")
             
         except Exception as e:
             self.logger.error(f"Pipeline failed: {e}")
+            if self.current_run_id:
+                self.state_manager.fail_step(self.current_run_id, 'current', str(e))
             results['error'] = str(e)
             raise
         
@@ -206,6 +271,159 @@ class NewsPipeline:
             self.scraper.cleanup()
         
         return results
+    
+    def _override_config(self, confidence_threshold: float | None = None, max_articles: int | None = None):
+        """Override pipeline configuration at runtime."""
+        if confidence_threshold or max_articles:
+            import yaml
+            try:
+                with open("config/pipeline_config.yaml", 'r') as f:
+                    config = yaml.safe_load(f)
+                
+                if confidence_threshold:
+                    config['pipeline']['filtering']['confidence_threshold'] = confidence_threshold
+                    self.logger.info(f"Overriding confidence threshold to {confidence_threshold}")
+                
+                if max_articles:
+                    config['pipeline']['filtering']['max_articles_to_process'] = max_articles
+                    self.logger.info(f"Overriding max articles to {max_articles}")
+                
+                # Save updated config temporarily
+                with open("config/pipeline_config.yaml", 'w') as f:
+                    yaml.dump(config, f)
+                
+                # Reinitialize filter with new config
+                self.filter = AIFilter(self.db_path)
+                
+            except Exception as e:
+                self.logger.warning(f"Could not override config: {e}")
+    
+    def get_enhanced_pipeline_stats(self, run_id: str) -> dict:
+        """Get detailed stats showing the confidence-based funnel."""
+        conn = sqlite3.connect(self.db_path)
+        
+        stats = {}
+        
+        # Get stage counts
+        stages_query = """
+            SELECT 
+                pipeline_stage,
+                COUNT(*) as count,
+                AVG(triage_confidence) as avg_confidence,
+                MIN(triage_confidence) as min_confidence,
+                MAX(triage_confidence) as max_confidence
+            FROM items 
+            WHERE pipeline_run_id = ?
+            GROUP BY pipeline_stage
+        """
+        
+        cursor = conn.execute(stages_query, (run_id,))
+        for row in cursor.fetchall():
+            stage = row[0] or 'unprocessed'
+            stats[stage] = {
+                'count': row[1],
+                'avg_confidence': row[2],
+                'min_confidence': row[3],
+                'max_confidence': row[4]
+            }
+        
+        # Get selection details
+        selection_query = """
+            SELECT 
+                COUNT(*) as total_matched,
+                SUM(CASE WHEN selected_for_processing = 1 THEN 1 ELSE 0 END) as selected,
+                MIN(CASE WHEN selected_for_processing = 1 THEN triage_confidence END) as selection_threshold_actual,
+                MAX(selection_rank) as max_rank
+            FROM items 
+            WHERE pipeline_run_id = ?
+            AND is_match = 1
+        """
+        
+        cursor = conn.execute(selection_query, (run_id,))
+        row = cursor.fetchone()
+        
+        stats['selection'] = {
+            'total_matched': row[0] or 0,
+            'selected_for_processing': row[1] or 0,
+            'actual_threshold_used': row[2],
+            'selection_rate': (row[1] / row[0]) if row[0] and row[0] > 0 else 0
+        }
+        
+        # Build funnel summary
+        stats['funnel'] = {
+            'collected': stats.get('collected', {}).get('count', 0),
+            'matched': stats['selection']['total_matched'],
+            'selected': stats['selection']['selected_for_processing'],
+            'scraped': stats.get('scraped', {}).get('count', 0),
+            'summarized': stats.get('summarized', {}).get('count', 0)
+        }
+        
+        conn.close()
+        return stats
+    
+    def print_selection_report(self, run_id: str):
+        """Print detailed report of article selection."""
+        conn = sqlite3.connect(self.db_path)
+        
+        print("\n" + "="*70)
+        print("ARTICLE SELECTION REPORT")
+        print("="*70)
+        
+        # Top selected articles
+        cursor = conn.execute("""
+            SELECT selection_rank, title, triage_confidence, source
+            FROM items
+            WHERE pipeline_run_id = ?
+            AND selected_for_processing = 1
+            ORDER BY selection_rank
+            LIMIT 10
+        """, (run_id,))
+        
+        print("\n📈 Top 10 Selected Articles:")
+        print("-" * 70)
+        for rank, title, conf, source in cursor.fetchall():
+            print(f"  #{rank:2d} [{conf:.2%}] {title[:55]}...")
+            print(f"      Source: {source}")
+        
+        # Articles just below threshold
+        cursor = conn.execute("""
+            SELECT title, triage_confidence, source
+            FROM items
+            WHERE pipeline_run_id = ?
+            AND is_match = 1
+            AND selected_for_processing = 0
+            ORDER BY triage_confidence DESC
+            LIMIT 5
+        """, (run_id,))
+        
+        below_threshold = cursor.fetchall()
+        if below_threshold:
+            print("\n⚠️ Not Selected (below threshold or outside top N):")
+            print("-" * 70)
+            for title, conf, source in below_threshold:
+                print(f"  [{conf:.2%}] {title[:55]}... ({source})")
+        
+        # Pipeline funnel
+        stats = self.get_enhanced_pipeline_stats(run_id)
+        funnel = stats['funnel']
+        
+        print("\n📊 Pipeline Funnel:")
+        print("-" * 70)
+        print(f"  Collected:  {funnel['collected']:4d} articles")
+        print(f"  ↓ Filtered")
+        print(f"  Matched:    {funnel['matched']:4d} articles ({format_rate(funnel['matched'], funnel['collected'])})")
+        print(f"  ↓ Selected (confidence-based)")
+        print(f"  Selected:   {funnel['selected']:4d} articles ({format_rate(funnel['selected'], funnel['matched'])})")
+        print(f"  ↓ Scraped")
+        print(f"  Scraped:    {funnel['scraped']:4d} articles")
+        print(f"  ↓ Summarized") 
+        print(f"  Summarized: {funnel['summarized']:4d} articles")
+        
+        if stats['selection']['actual_threshold_used']:
+            print(f"\n  Actual confidence threshold used: {stats['selection']['actual_threshold_used']:.2%}")
+        
+        conn.close()
+        print("="*70 + "\n")
     
     def show_stats(self) -> dict:
         """Show comprehensive pipeline statistics."""
@@ -324,6 +542,20 @@ Examples:
         help="Enable priority-based pre-filtering (process only top ~100 articles) - by default disabled"
     )
     
+    parser.add_argument(
+        "--confidence-threshold",
+        type=float,
+        default=None,
+        help="Minimum confidence threshold for processing (default: from config)"
+    )
+    
+    parser.add_argument(
+        "--max-articles",
+        type=int,
+        default=None,
+        help="Maximum number of articles to process (default: 35)"
+    )
+    
     args = parser.parse_args()
     
     # Set up logging level
@@ -373,14 +605,24 @@ Examples:
         else:
             # Run full pipeline
             print("Starting AI News Analysis Pipeline...")
+            print(f"Configuration: confidence_threshold={args.confidence_threshold}, max_articles={args.max_articles}")
             results = pipeline.run_full_pipeline(
-                scrape_limit=args.limit,
-                summarize_limit=args.limit,
+                scrape_limit=args.limit,  # This becomes redundant with max_articles
+                summarize_limit=args.limit,  # This becomes redundant with max_articles
                 export_format=export_format,
-                skip_prefilter=not args.enable_prefilter
+                skip_prefilter=not args.enable_prefilter,
+                confidence_threshold=args.confidence_threshold,
+                max_articles=args.max_articles
             )
-            print(f"[SUCCESS] Pipeline completed in {results.get('total_duration', 'unknown')}")
+            print(f"\n[SUCCESS] Pipeline completed in {results.get('total_duration', 'unknown')}")
             print(f"[EXPORT] Digest exported to: {results.get('step5_export_path', 'unknown')}")
+            
+            # Show funnel summary
+            if 'pipeline_stats' in results:
+                funnel = results['pipeline_stats']['funnel']
+                print(f"\n[FUNNEL] Pipeline Results:")
+                print(f"  Collected → Matched → Selected → Scraped → Summarized")
+                print(f"  {funnel['collected']:^9} → {funnel['matched']:^7} → {funnel['selected']:^8} → {funnel['scraped']:^7} → {funnel['summarized']:^10}")
             
     except KeyboardInterrupt:
         print("\n[STOP] Pipeline interrupted by user")
