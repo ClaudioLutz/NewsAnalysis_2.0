@@ -6,11 +6,14 @@ using sequential thinking to provide rating agency perspective on market develop
 """
 
 import os
+import sqlite3
+from urllib.parse import urlparse
 import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
 
 # Load environment variables
 load_dotenv()
@@ -98,6 +101,92 @@ class GermanRatingFormatter:
         except Exception as e:
             self.logger.error(f"Error generating German rating report: {e}")
             raise
+
+    # --- NEW: helpers -------------------------------------------------------
+    def _resolve_source_metadata(self, source_urls: list[str]) -> list[dict]:
+        """
+        Map each URL to {'url': str, 'title': Optional[str]} using the SQLite DB (items table).
+        Falls back to None title if not resolvable.
+        """
+        results: list[dict] = []
+        if not source_urls:
+            return results
+
+        db_path = os.getenv("DB_PATH", "news.db")
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            for url in source_urls:
+                # Try to resolve by exact url or normalized_url; prefer newest hit
+                cur.execute(
+                    """
+                    SELECT title, url
+                    FROM items
+                    WHERE url = ? OR normalized_url = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (url, url),
+                )
+                row = cur.fetchone()
+                title = (row["title"].strip() if row and row["title"] else None)
+                results.append({"url": url, "title": title})
+        except Exception as e:
+            self.logger.warning(f"Could not resolve titles from DB: {e}")
+            results = [{"url": u, "title": None} for u in source_urls]
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return results
+
+    def _fetch_fulltext_by_url(self, url: str) -> Optional[str]:
+        """
+        Find the full extracted_text for an article URL via items -> articles.
+        Returns None if not found or on error.
+        """
+        db_path = os.getenv("DB_PATH", "news.db")
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            # Find the item id by url/normalized_url
+            cur.execute(
+                """
+                SELECT id FROM items
+                WHERE url = ? OR normalized_url = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (url, url),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            item_id = row["id"]
+            # Fetch the most recent extracted_text for that item
+            cur.execute(
+                """
+                SELECT extracted_text
+                FROM articles
+                WHERE item_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (item_id,),
+            )
+            arow = cur.fetchone()
+            return arow["extracted_text"] if arow and arow["extracted_text"] else None
+        except Exception as e:
+            self.logger.warning(f"Could not fetch full text for URL: {e}")
+            return None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     def _generate_rating_analysis(self, digest_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -129,7 +218,9 @@ Erstelle eine professionelle Analyse in deutscher Sprache mit folgender Struktur
 - risk_assessment: Detaillierte Risikoanalyse nach Kategorien
 - sector_implications: Auswirkungen auf verschiedene Sektoren
 - rating_methodology_updates: Empfehlungen für Rating-Methodik-Anpassungen
-- immediate_actions: Sofortige Handlungsempfehlungen für das Rating-Team"""
+- immediate_actions: Sofortige Handlungsempfehlungen für das Rating-Team
+
+Bitte geben Sie die Ausgabe als JSON-Objekt zurück."""
 
             # Prepare digest data for analysis
             analysis_input = {
@@ -145,8 +236,8 @@ Erstelle eine professionelle Analyse in deutscher Sprache mit folgender Struktur
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": json.dumps(analysis_input, ensure_ascii=False)}
                 ],
-                temperature=0.7,
-                max_tokens=2000
+                response_format={"type": "json_object"},
+                max_completion_tokens=2000
             )
             
             analysis_text = response.choices[0].message.content
@@ -197,63 +288,63 @@ Erstelle eine professionelle Analyse in deutscher Sprache mit folgender Struktur
             "method": "basic_fallback"
         }
     
-    def _write_german_markdown_report(self, output_path: str, digest_data: Dict[str, Any], 
-                                    analysis: Dict[str, Any]):
+    def _write_german_markdown_report(self, output_path: str, digest_data: Dict[str, Any],
+                                      analysis: Dict[str, Any]):
         """
-        Write the German markdown report to file.
+        Write the German markdown report to file using a Jinja2 template.
         
         Args:
             output_path: Output file path
             digest_data: Original digest data
             analysis: Generated analysis
         """
-        report_date = digest_data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        # Set up Jinja2 environment
+        env = Environment(loader=FileSystemLoader('templates'))
+
+        # Define custom filters
+        def datetime_format(value, format='%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.fromisoformat(value).strftime(format)
+            except (ValueError, TypeError):
+                return value
+
+        def topic_name(value):
+            return value.replace('_', ' ').title()
+
+        def domain_name(value):
+            try:
+                return urlparse(value).netloc
+            except:
+                return value
+
+        # Register custom filters
+        env.filters['datetime_format'] = datetime_format
+        env.filters['topic_name'] = topic_name
+        env.filters['domain_name'] = domain_name
+
+        template = env.get_template('daily_digest.md.j2')
+
+        # Resolve source metadata
+        for topic_name, topic_data in digest_data.get('topic_digests', {}).items():
+            sources = topic_data.get('sources') or []
+            if sources:
+                seen = set()
+                deduped = [u for u in sources if not (u in seen or seen.add(u))]
+                meta = self._resolve_source_metadata(deduped)
+                topic_data['sources_meta'] = meta
+
+        # Combine data for the template
+        context = {
+            'data': digest_data,
+            'analysis': analysis,
+            'max_sources': int(os.getenv("GERMAN_REPORT_MAX_SOURCES", "5"))
+        }
+        
+        # Render the template
+        output = template.render(context)
         
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(f"# Bonität-Tagesanalyse: Schweizer Markt\n")
-            f.write(f"**Datum:** {report_date}\n")
-            f.write(f"**Erstellt von:** Produktmanagement Rating-Agentur\n")
-            f.write(f"**Basierend auf:** Daily Digest {report_date}\n\n")
-            f.write("---\n\n")
-            
-            # Main analysis content
-            f.write(analysis.get('analysis_text', ''))
-            
-            # Add trending topics section
-            trending_topics = digest_data.get('trending_topics', [])
-            if trending_topics:
-                f.write(f"\n## Trending-Themen (Top {min(5, len(trending_topics))})\n\n")
-                for i, topic in enumerate(trending_topics[:5], 1):
-                    f.write(f"{i}. **{topic.get('topic', 'Unbekannt')}** "
-                           f"({topic.get('article_count', 0)} Artikel, "
-                           f"Konfidenz: {topic.get('avg_confidence', 0):.2f})\n")
-                f.write("\n")
-            
-            # Add detailed topic analysis
-            topic_digests = digest_data.get('topic_digests', {})
-            if topic_digests:
-                f.write("## Detaillierte Themenanalyse\n\n")
-                
-                for topic_name, topic_data in topic_digests.items():
-                    if topic_data.get('article_count', 0) > 0:
-                        f.write(f"### {topic_name.replace('_', ' ').title()}\n\n")
-                        f.write(f"**{topic_data.get('headline', 'Keine Schlagzeile verfügbar')}**\n\n")
-                        f.write(f"{topic_data.get('why_it_matters', 'Keine Details verfügbar.')}\n\n")
-                        
-                        bullets = topic_data.get('bullets', [])
-                        if bullets:
-                            f.write("**Hauptpunkte:**\n\n")
-                            for bullet in bullets:
-                                f.write(f"- {bullet}\n")
-                            f.write("\n")
-                        
-                        f.write(f"*Basierend auf {topic_data.get('article_count', 0)} Artikeln*\n\n")
-            
-            # Footer
-            f.write("---\n\n")
-            f.write(f"**Bericht generiert:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"**Methode:** {analysis.get('method', 'unbekannt')}\n")
-            f.write(f"**Gesamtartikel:** {digest_data.get('executive_summary', {}).get('total_articles', 'unbekannt')}\n")
+            f.write(output)
 
 
 def format_daily_digest_to_german_markdown(digest_json_path: str, output_dir: str = "rating_reports") -> str:

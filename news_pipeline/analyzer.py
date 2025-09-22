@@ -17,6 +17,8 @@ load_dotenv(override=True)
 
 from openai import OpenAI
 
+from news_pipeline.language_config import get_language_config
+
 
 class MetaAnalyzer:
     """Aggregate analysis and meta-summary generation using MODEL_FULL."""
@@ -25,6 +27,8 @@ class MetaAnalyzer:
         self.db_path = db_path
         self.client = OpenAI()
         self.model = os.getenv("MODEL_FULL", "gpt-5")
+        self.language = os.getenv("PIPELINE_LANGUAGE", "en")
+        self.lang_config = get_language_config()
         
         self.logger = logging.getLogger(__name__)
     
@@ -110,24 +114,7 @@ class MetaAnalyzer:
                 }
             
             # Build system prompt
-            system_prompt = f"""You are a senior Swiss business analyst creating executive briefings.
-
-Create a comprehensive digest of {topic} news for {date_range}.
-
-Analyze the provided article summaries and create:
-- headline: Compelling 1-2 sentence headline capturing the main story/trend
-- why_it_matters: 2-3 sentences explaining business impact and significance
-- bullets: 4-6 key bullet points with specific insights, numbers, and implications
-- sources: List of article URLs for reference
-
-Focus on:
-1. Major trends and patterns across articles
-2. Business and financial implications
-3. Key stakeholders and market impacts
-4. Strategic significance for Swiss economy
-5. Forward-looking insights and implications
-
-Be analytical, concise, and executive-focused. Synthesize rather than just summarize."""
+            system_prompt = self.lang_config.get_topic_digest_prompt(topic)
             
             # Prepare input data
             input_data = {
@@ -339,17 +326,7 @@ Be analytical, concise, and executive-focused. Synthesize rather than just summa
                     'total_articles': 0
                 }
             
-            system_prompt = """You are a C-level executive briefing analyst.
-
-Create an executive summary from multiple topic digests covering Swiss business news.
-
-Provide:
-- headline: Single compelling headline for the day/period
-- executive_summary: 3-4 sentences with the most critical insights
-- key_themes: 3-5 major themes/patterns across all topics
-- top_priorities: 2-3 items requiring executive attention
-
-Focus on strategic implications, cross-topic patterns, and actionable insights."""
+            system_prompt = self.lang_config.get_executive_summary_prompt()
             
             # Prepare input
             input_data = {

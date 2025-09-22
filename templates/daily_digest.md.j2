@@ -31,6 +31,18 @@
 
 ---
 
+## Trending Topics
+
+{% if data.trending_topics %}
+{% for topic in data.trending_topics[:5] -%}
+{{ loop.index }}. **{{ topic.topic | topic_name }}** ({{ topic.article_count }} articles, confidence: {{ topic.avg_confidence | round(2) }})
+{% endfor %}
+{% else %}
+*No trending topics identified.*
+{% endif %}
+
+---
+
 ## Topic Analysis
 
 {% for topic_name, digest in data.topic_digests.items() %}
@@ -51,13 +63,13 @@
 
 *Based on {{ digest.article_count }} articles*
 
-{% if digest.sources %}
+{% if digest.sources_meta %}
 **Sources:**
-{% for source in digest.sources[:5] -%}
-- [{{ source | domain_name }}]({{ source }})
+{% for source in digest.sources_meta[:max_sources] -%}
+- [{{ source.title or source.url | domain_name }}]({{ source.url }})
 {% endfor %}
-{% if digest.sources | length > 5 -%}
-*... and {{ digest.sources | length - 5 }} more sources*
+{% if digest.sources_meta | length > max_sources -%}
+*... and {{ digest.sources_meta | length - max_sources }} more sources*
 {% endif %}
 {% endif %}
 
