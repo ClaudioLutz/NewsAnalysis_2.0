@@ -1,7 +1,7 @@
 pipeline:
   filtering:
     confidence_threshold: 0.8
-    max_articles_to_process: 5
+    max_articles_to_process: 2
   reporting:
     show_funnel_stats: true
     show_selection_details: true

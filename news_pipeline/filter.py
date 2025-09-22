@@ -875,6 +875,7 @@ Be selective - only mark articles that provide actionable business intelligence.
     def filter_for_run(self, run_id: str, mode: str = "standard") -> Dict[str, Any]:
         """
         Filter articles and select top N by confidence for a specific pipeline run.
+        FIXED: Only work with articles belonging to this run to prevent validation errors.
         
         Args:
             run_id: Pipeline run identifier
@@ -883,18 +884,38 @@ Be selective - only mark articles that provide actionable business intelligence.
         Returns:
             Results dictionary including selected article count
         """
-        # Step 1: Run classification (existing logic)
+        # Step 1: Run classification on articles belonging to this run
         results = self.filter_for_creditreform(mode)
         
-        # Step 2: Mark articles with pipeline run ID
+        # Step 2: Mark ONLY matched articles from this run (not all triage_topic articles)
         conn = sqlite3.connect(self.db_path)
-        conn.execute("""
-            UPDATE items 
-            SET pipeline_run_id = ?
+        
+        # First, get newly classified articles that should belong to this run
+        cursor = conn.execute("""
+            SELECT COUNT(*) FROM items 
             WHERE triage_topic IS NOT NULL 
-            AND pipeline_run_id IS NULL
+            AND pipeline_run_id = ?
+            AND is_match = 1
         """, (run_id,))
-        conn.commit()
+        already_assigned = cursor.fetchone()[0]
+        
+        if already_assigned == 0:
+            # No articles assigned yet - this means we need to assign the newly classified ones
+            # But only assign those without existing summaries to prevent validation errors
+            conn.execute("""
+                UPDATE items 
+                SET pipeline_run_id = ?,
+                    pipeline_stage = CASE 
+                        WHEN is_match = 1 THEN 'matched'
+                        ELSE 'filtered_out'
+                    END
+                WHERE triage_topic IS NOT NULL 
+                AND pipeline_run_id IS NULL
+                AND NOT EXISTS (SELECT 1 FROM summaries s WHERE s.item_id = items.id)
+            """, (run_id,))
+            conn.commit()
+            self.logger.info("Assigned newly classified articles to pipeline run (excluding already-summarized)")
+        
         conn.close()
         
         # Step 3: Select top articles by confidence
@@ -943,16 +964,29 @@ Be selective - only mark articles that provide actionable business intelligence.
             threshold = global_threshold
             self.logger.info(f"Using global threshold: {threshold} (no topic found)")
         
-        # Reset selection state
+        # Reset selection state (avoid stage transition errors)
         conn.execute("""
             UPDATE items 
             SET selected_for_processing = 0,
-                selection_rank = NULL,
-                pipeline_stage = CASE 
-                    WHEN is_match = 1 THEN 'matched'
-                    ELSE 'filtered_out'
-                END
+                selection_rank = NULL
             WHERE pipeline_run_id = ?
+        """, (run_id,))
+        
+        # Update pipeline_stage only where it needs to change
+        conn.execute("""
+            UPDATE items 
+            SET pipeline_stage = 'matched'
+            WHERE pipeline_run_id = ? 
+            AND is_match = 1 
+            AND pipeline_stage != 'matched'
+        """, (run_id,))
+        
+        conn.execute("""
+            UPDATE items 
+            SET pipeline_stage = 'filtered_out'
+            WHERE pipeline_run_id = ? 
+            AND is_match = 0 
+            AND pipeline_stage != 'filtered_out'
         """, (run_id,))
         
         # Select top articles that DON'T have summaries

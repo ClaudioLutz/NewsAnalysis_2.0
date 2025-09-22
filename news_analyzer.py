@@ -329,12 +329,15 @@ class NewsPipeline:
                 self.logger.warning(f"Could not override config: {e}")
     
     def get_enhanced_pipeline_stats(self, run_id: str) -> dict:
-        """Get detailed stats showing the confidence-based funnel."""
+        """
+        Get detailed stats showing the confidence-based funnel.
+        FIXED: Proper counting of articles through all pipeline stages.
+        """
         conn = sqlite3.connect(self.db_path)
         
         stats = {}
         
-        # Get stage counts
+        # Get stage counts (articles assigned to this run)
         stages_query = """
             SELECT 
                 pipeline_stage,
@@ -379,13 +382,34 @@ class NewsPipeline:
             'selection_rate': (row[1] / row[0]) if row[0] and row[0] > 0 else 0
         }
         
-        # Build funnel summary
+        # FIXED: Get accurate counts for each funnel stage
+        # Count collected articles (all articles assigned to this run)
+        cursor = conn.execute("SELECT COUNT(*) FROM items WHERE pipeline_run_id = ?", (run_id,))
+        collected_count = cursor.fetchone()[0] or 0
+        
+        # Count scraped articles (have content extraction)
+        cursor = conn.execute("""
+            SELECT COUNT(*) FROM items i
+            JOIN articles a ON i.id = a.item_id
+            WHERE i.pipeline_run_id = ? AND a.content IS NOT NULL AND a.content != ''
+        """, (run_id,))
+        scraped_count = cursor.fetchone()[0] or 0
+        
+        # Count summarized articles (have summaries)
+        cursor = conn.execute("""
+            SELECT COUNT(*) FROM items i
+            JOIN summaries s ON i.id = s.item_id
+            WHERE i.pipeline_run_id = ?
+        """, (run_id,))
+        summarized_count = cursor.fetchone()[0] or 0
+        
+        # Build accurate funnel summary
         stats['funnel'] = {
-            'collected': stats.get('collected', {}).get('count', 0),
+            'collected': collected_count,
             'matched': stats['selection']['total_matched'],
             'selected': stats['selection']['selected_for_processing'],
-            'scraped': stats.get('scraped', {}).get('count', 0),
-            'summarized': stats.get('summarized', {}).get('count', 0)
+            'scraped': scraped_count,
+            'summarized': summarized_count
         }
         
         conn.close()

@@ -14,3 +14,4 @@ urllib3[zstd]>=2.0.0
 beautifulsoup4>=4.11.0
 lxml>=4.9.0
 python-dotenv>=1.0.0
+jinja2>=3.0.0
