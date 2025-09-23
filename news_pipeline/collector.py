@@ -24,18 +24,18 @@ from .paths import config_path, safe_open
 class NewsCollector:
     """Collect headline-level metadata from various Swiss news sources."""
     
-    def __init__(self, db_path: str, config_path: str | None = None, respect_robots: bool = False):
+    def __init__(self, db_path: str, feeds_config_path: str | None = None, respect_robots: bool = False):
         self.db_path = db_path
         # Use robust path resolution for config file
-        if config_path is None:
+        if feeds_config_path is None:
             config_file_path = config_path("feeds.yaml")
-        elif config_path.startswith("config/") or not os.path.isabs(config_path):
-            # Handle legacy relative path format
+        elif feeds_config_path.startswith("config/") or not os.path.isabs(feeds_config_path):
+            # Handle legacy relative path format - always use the robust path resolution
             config_file_path = config_path("feeds.yaml")
         else:
             # Use absolute path as-is
             from pathlib import Path
-            config_file_path = Path(config_path)
+            config_file_path = Path(feeds_config_path)
         
         self.config_path = str(config_file_path)
         self.respect_robots = respect_robots
