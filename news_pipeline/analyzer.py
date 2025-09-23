@@ -38,7 +38,13 @@ class MetaAnalyzer:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
-        cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
+        # For daily digest (days=1), use start of current calendar day instead of rolling 24-hour window
+        # This prevents cross-contamination from previous days and ensures all current day articles are included
+        if days == 1:
+            cutoff_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        else:
+            # For weekly/other periods, use the original rolling window logic
+            cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
         
         if run_id:
             # Only summaries from this pipeline run
