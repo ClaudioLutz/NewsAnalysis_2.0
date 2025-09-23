@@ -18,14 +18,26 @@ from typing import List, Dict, Any, Optional
 import logging
 
 from .utils import normalize_url, url_hash, is_allowed_by_robots, parse_date, title_similarity
+from .paths import config_path, safe_open
 
 
 class NewsCollector:
     """Collect headline-level metadata from various Swiss news sources."""
     
-    def __init__(self, db_path: str, config_path: str = "config/feeds.yaml", respect_robots: bool = False):
+    def __init__(self, db_path: str, config_path: str | None = None, respect_robots: bool = False):
         self.db_path = db_path
-        self.config_path = config_path
+        # Use robust path resolution for config file
+        if config_path is None:
+            config_file_path = config_path("feeds.yaml")
+        elif config_path.startswith("config/") or not os.path.isabs(config_path):
+            # Handle legacy relative path format
+            config_file_path = config_path("feeds.yaml")
+        else:
+            # Use absolute path as-is
+            from pathlib import Path
+            config_file_path = Path(config_path)
+        
+        self.config_path = str(config_file_path)
         self.respect_robots = respect_robots
         self.user_agent = os.getenv("USER_AGENT", "NewsAnalyzerBot/1.0 (+contact@email)")
         self.max_items_per_feed = int(os.getenv("MAX_ITEMS_PER_FEED", "120"))
@@ -45,9 +57,18 @@ class NewsCollector:
         
         self.logger = logging.getLogger(__name__)
         
-        # Load feeds configuration
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.config = yaml.safe_load(f)
+        # Load feeds configuration using safe path resolution
+        try:
+            with safe_open(config_file_path, 'r', encoding='utf-8') as f:
+                self.config = yaml.safe_load(f)
+        except FileNotFoundError as e:
+            # Provide helpful error message with context
+            raise FileNotFoundError(
+                f"Could not find feeds configuration file.\n"
+                f"Tried path: {config_file_path}\n"
+                f"Make sure config/feeds.yaml exists in the project root.\n"
+                f"Original error: {e}"
+            ) from e
     
     def collect_from_rss(self, feed_urls: List[str], source: str) -> List[Dict[str, Any]]:
         """Collect articles from RSS feeds using feedparser."""

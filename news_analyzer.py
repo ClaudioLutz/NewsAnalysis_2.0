@@ -39,6 +39,7 @@ from news_pipeline.utils import (
     setup_logging, log_step_start, log_step_complete, 
     log_error_with_context, format_number, format_rate
 )
+from news_pipeline.paths import resource_path, config_path, safe_open
 import time
 import sqlite3
 from typing import Dict, Any
@@ -48,7 +49,18 @@ class NewsPipeline:
     """Main pipeline orchestrator for the 5-step news analysis workflow."""
     
     def __init__(self, db_path: str | None = None, enable_file_logging: bool = True):
-        self.db_path = db_path or os.getenv("DB_PATH", "./news.db")
+        # Use robust path resolution for database
+        if db_path:
+            self.db_path = db_path
+        else:
+            # Check environment variable first, then use default location
+            env_db_path = os.getenv("DB_PATH")
+            if env_db_path:
+                self.db_path = env_db_path
+            else:
+                # Default to news.db in project root
+                self.db_path = str(resource_path("news.db"))
+        
         self.logger = setup_logging(log_to_file=enable_file_logging, component="pipeline")
         
         # Initialize components
@@ -307,7 +319,8 @@ class NewsPipeline:
         if confidence_threshold or max_articles:
             import yaml
             try:
-                with open("config/pipeline_config.yaml", 'r') as f:
+                pipeline_config_path = config_path("pipeline_config.yaml")
+                with safe_open(pipeline_config_path, 'r') as f:
                     config = yaml.safe_load(f)
                 
                 if confidence_threshold:
@@ -319,7 +332,7 @@ class NewsPipeline:
                     self.logger.info(f"Overriding max articles to {max_articles}")
                 
                 # Save updated config temporarily
-                with open("config/pipeline_config.yaml", 'w') as f:
+                with safe_open(pipeline_config_path, 'w') as f:
                     yaml.dump(config, f)
                 
                 # Reinitialize filter with new config

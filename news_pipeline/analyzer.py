@@ -18,6 +18,7 @@ load_dotenv(override=True)
 from openai import OpenAI
 
 from news_pipeline.language_config import get_language_config
+from .paths import config_path, safe_open
 
 
 class MetaAnalyzer:
@@ -214,7 +215,8 @@ class MetaAnalyzer:
             # Load topics configuration to get only enabled topics
             import yaml
             try:
-                with open('config/topics.yaml', 'r', encoding='utf-8') as f:
+                topics_config_path = config_path('topics.yaml')
+                with safe_open(topics_config_path, 'r', encoding='utf-8') as f:
                     topics_config = yaml.safe_load(f)
                 
                 # Get only enabled topics
@@ -300,7 +302,8 @@ class MetaAnalyzer:
         import yaml
         enabled_topics = []
         try:
-            with open('config/topics.yaml', 'r', encoding='utf-8') as f:
+            topics_config_path = config_path('topics.yaml')
+            with safe_open(topics_config_path, 'r', encoding='utf-8') as f:
                 topics_config = yaml.safe_load(f)
             
             enabled_topics = [name for name, config in topics_config['topics'].items() 
