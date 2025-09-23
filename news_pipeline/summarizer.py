@@ -28,7 +28,10 @@ class ArticleSummarizer:
         self.logger = logging.getLogger(__name__)
         
         # Load summary schema
-        with open("schemas/summary.schema.json", 'r', encoding='utf-8') as f:
+        from pathlib import Path
+        BASE_DIR = Path(__file__).resolve().parents[1]  # .../NewsAnalysis_2.0
+        schema_path = BASE_DIR / "schemas" / "summary.schema.json"
+        with schema_path.open('r', encoding='utf-8') as f:
             self.summary_schema = json.load(f)
     
     def summarize_article(self, content: str, title: str = "", url: str = "") -> Dict[str, Any]:
@@ -263,7 +266,8 @@ Be precise, factual, and focus on business/financial significance."""
             # Use max_articles from config
             import yaml
             try:
-                with open("config/pipeline_config.yaml", 'r') as f:
+                cfg_path = BASE_DIR / "config" / "pipeline_config.yaml"
+                with cfg_path.open('r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                     limit = config['pipeline']['filtering'].get('max_articles_to_process', 35)
             except:

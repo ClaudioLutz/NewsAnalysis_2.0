@@ -19,7 +19,11 @@ def load_feeds_from_config(config_path="config/feeds.yaml"):
         print(f"Error: Config file {config_path} not found")
         return
     
-    with open(config_path, 'r', encoding='utf-8') as f:
+    from pathlib import Path
+    config_path = Path(config_path)
+    if not config_path.is_absolute():
+        config_path = Path(__file__).resolve().parents[1] / config_path
+    with config_path.open('r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     
     conn = sqlite3.connect(db_path)

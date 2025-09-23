@@ -240,7 +240,8 @@ scores_df = pd.read_csv("outputs/debug_scores.csv")
 print(scores_df.describe())
 
 # Find articles near the cutoff
-model_spec = json.load(open("outputs/prefilter_model.json"))
+from pathlib import Path
+model_spec = json.loads((Path(__file__).resolve().parents[1] / "outputs" / "prefilter_model.json").read_text(encoding="utf-8"))
 cutoff = model_spec["topics"]["creditreform_insights"]["cutoff"]
 near_cutoff = scores_df[abs(scores_df.score - cutoff) < 0.05]
 ```
@@ -250,7 +251,8 @@ near_cutoff = scores_df[abs(scores_df.score - cutoff) < 0.05]
 ```python
 import json
 
-model = json.load(open("outputs/prefilter_model.json"))
+from pathlib import Path
+model = json.loads((Path(__file__).resolve().parents[1] / "outputs" / "prefilter_model.json").read_text(encoding="utf-8"))
 for topic, config in model["topics"].items():
     print(f"{topic}: cutoff={config['cutoff']:.3f}")
     if config["metrics"]["f1"]:

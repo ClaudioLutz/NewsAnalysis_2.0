@@ -30,7 +30,8 @@ def test_enhanced_analyzer():
     # Database path
     db_path = "news.db"
     
-    if not os.path.exists(db_path):
+    from pathlib import Path
+    if not Path(db_path).exists():
         print(f"Error: Database {db_path} does not exist!")
         print("Run the main pipeline first to create test data.")
         return
@@ -94,7 +95,7 @@ def test_enhanced_analyzer():
         print(f"   Exported Markdown digest: {markdown_path}")
         
         # Check file size
-        file_size = os.path.getsize(markdown_path) / 1024  # KB
+        file_size = Path(markdown_path).stat().st_size / 1024  # KB
         print(f"   Markdown file size: {file_size:.1f} KB")
         
     except Exception as e:

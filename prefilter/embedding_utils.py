@@ -5,7 +5,8 @@ from typing import Iterable, List, Tuple
 import numpy as np
 from openai import OpenAI
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "outputs", "cache")
+from pathlib import Path
+CACHE_DIR = str(Path(__file__).resolve().parent.parent / "outputs" / "cache")
 
 def _hash_key(text: str, model: str, dims: int) -> str:
     h = hashlib.sha1()
@@ -17,9 +18,9 @@ def _hash_key(text: str, model: str, dims: int) -> str:
     return h.hexdigest()
 
 def _cache_path(key: str) -> str:
-    sub = os.path.join(CACHE_DIR, key[:2])
-    os.makedirs(sub, exist_ok=True)
-    return os.path.join(sub, f"{key}.npy")
+    sub = Path(CACHE_DIR) / key[:2]
+    sub.mkdir(parents=True, exist_ok=True)
+    return str(sub / f"{key}.npy")
 
 def embed_texts(
     texts: List[str],
@@ -43,7 +44,7 @@ def embed_texts(
 
     for i, (t, k) in enumerate(zip(texts, keys)):
         p = _cache_path(k)
-        if os.path.exists(p):
+        if Path(p).exists():
             out[i] = np.load(p)
         else:
             missing_ix.append(i)

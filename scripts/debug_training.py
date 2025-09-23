@@ -39,7 +39,9 @@ def debug_training():
     
     # Check if creditreform_seeds.txt exists
     try:
-        with open('data/creditreform_seeds.txt', 'r', encoding='utf-8') as f:
+        from pathlib import Path
+        seeds_file = Path(__file__).resolve().parents[1] / "data" / "creditreform_seeds.txt"
+        with seeds_file.open('r', encoding='utf-8') as f:
             seeds = [line.strip() for line in f if line.strip()]
         print(f"\n=== FOUND SEEDS FILE ===")
         print(f"Seeds file has {len(seeds)} entries")

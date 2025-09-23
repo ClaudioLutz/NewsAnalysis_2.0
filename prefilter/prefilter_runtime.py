@@ -6,13 +6,18 @@ import numpy as np
 from prefilter.embedding_utils import embed_texts
 
 def load_prefilter_model(path: str) -> Dict:
-    with open(path, "r", encoding="utf-8") as fh:
+    from pathlib import Path
+    path = Path(path)
+    with path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
 def prefilter_titles(
     articles: List[Dict],              # each: {"id":..., "title":..., "topic":...}
-    model_path: str = os.path.join("outputs", "prefilter_model.json"),
+    model_path: str = None,
 ) -> Tuple[List[Dict], List[Tuple[str, float]]]:
+    if model_path is None:
+        from pathlib import Path
+        model_path = str(Path(__file__).resolve().parents[1] / "outputs" / "prefilter_model.json")
     spec = load_prefilter_model(model_path)
     model = spec["model"]; dims = int(spec["dims"])
 

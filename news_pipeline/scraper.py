@@ -478,7 +478,10 @@ Return the extracted text as plain text without any formatting or metadata."""
             # Use max_articles from config
             import yaml
             try:
-                with open("config/pipeline_config.yaml", 'r') as f:
+                from pathlib import Path
+                BASE_DIR = Path(__file__).resolve().parents[1]
+                cfg_path = BASE_DIR / "config" / "pipeline_config.yaml"
+                with cfg_path.open('r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                     limit = config['pipeline']['filtering'].get('max_articles_to_process', 35)
             except:

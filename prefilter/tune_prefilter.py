@@ -71,8 +71,10 @@ def main():
     ap.add_argument("--unsup_quantile", type=float, default=0.90, help="Else use this quantile for cutoff")
     ap.add_argument("--seed", action="append", help="Add a goal seed sentence; may repeat", default=[])
     ap.add_argument("--seeds_file", help="Text file with one seed per line")
-    ap.add_argument("--out_model", default=os.path.join("outputs", "prefilter_model.json"))
-    ap.add_argument("--out_scores", default=os.path.join("outputs", "debug_scores.csv"))
+    from pathlib import Path
+    _ROOT = Path(__file__).resolve().parents[1]
+    ap.add_argument("--out_model", default=str(_ROOT / "outputs" / "prefilter_model.json"))
+    ap.add_argument("--out_scores", default=str(_ROOT / "outputs" / "debug_scores.csv"))
     args = ap.parse_args()
 
     df = pd.read_csv(args.csv)
@@ -156,7 +158,7 @@ def main():
             "metrics": metrics
         }
 
-    os.makedirs(os.path.dirname(args.out_model), exist_ok=True)
+    Path(args.out_model).parent.mkdir(parents=True, exist_ok=True)
     with open(args.out_model, "w", encoding="utf-8") as fh:
         json.dump(model_spec, fh, ensure_ascii=False, indent=2)
 
