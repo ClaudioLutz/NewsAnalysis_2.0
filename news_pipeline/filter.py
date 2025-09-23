@@ -23,6 +23,9 @@ from .utils import (
 import time
 from .utils import url_hash
 
+# Import path utilities for robust file access
+from .paths import config_path, resource_path, safe_open
+
 # Import prefilter for cost-effective embedding-based filtering
 try:
     from prefilter.prefilter_runtime import prefilter_titles
@@ -34,8 +37,8 @@ except ImportError:
 class AIFilter:
     """AI-powered relevance filtering using MODEL_NANO."""
     
-    def __init__(self, db_path: str, topics_config_path: str = "config/topics.yaml", 
-                 pipeline_config_path: str = "config/pipeline_config.yaml"):
+    def __init__(self, db_path: str, topics_config_path: str = None, 
+                 pipeline_config_path: str = None):
         self.db_path = db_path
         self.client = OpenAI()
         self.model = os.getenv("MODEL_NANO", "gpt-5-nano")
@@ -43,17 +46,34 @@ class AIFilter:
         
         self.logger = logging.getLogger(__name__)
         
-        # Load topics configuration
-        with open(topics_config_path, 'r', encoding='utf-8') as f:
+        # Load topics configuration using robust path resolution
+        if topics_config_path is None:
+            topics_config_path = config_path("topics.yaml")
+        else:
+            # Convert relative path to absolute using path utilities
+            from pathlib import Path
+            if not Path(topics_config_path).is_absolute():
+                topics_config_path = config_path(Path(topics_config_path).name)
+        
+        with safe_open(topics_config_path, 'r', encoding='utf-8') as f:
             self.topics_config = yaml.safe_load(f)
         
-        # Load triage schema
-        with open("schemas/triage.schema.json", 'r', encoding='utf-8') as f:
+        # Load triage schema using robust path resolution
+        triage_schema_path = resource_path("schemas", "triage.schema.json")
+        with safe_open(triage_schema_path, 'r', encoding='utf-8') as f:
             self.triage_schema = json.load(f)
             
-        # Load pipeline configuration
+        # Load pipeline configuration using robust path resolution
+        if pipeline_config_path is None:
+            pipeline_config_path = config_path("pipeline_config.yaml")
+        else:
+            # Convert relative path to absolute using path utilities
+            from pathlib import Path
+            if not Path(pipeline_config_path).is_absolute():
+                pipeline_config_path = config_path(Path(pipeline_config_path).name)
+                
         try:
-            with open(pipeline_config_path, 'r', encoding='utf-8') as f:
+            with safe_open(pipeline_config_path, 'r', encoding='utf-8') as f:
                 self.pipeline_config = yaml.safe_load(f)
         except FileNotFoundError:
             self.logger.warning(f"Pipeline config not found at {pipeline_config_path}, using defaults")
@@ -443,8 +463,9 @@ Be precise and conservative - only mark as relevant if clearly related to the to
             
             self.logger.info(f"🚀 PREFILTER: Applying embedding-based prefilter to {len(prefilter_articles)} articles")
             
-            # Apply prefilter
-            survivors, scores = prefilter_titles(prefilter_articles, "outputs/prefilter_model.json")
+            # Apply prefilter using robust path resolution
+            prefilter_model_path = resource_path("outputs", "prefilter_model.json")
+            survivors, scores = prefilter_titles(prefilter_articles, str(prefilter_model_path))
             
             # Convert back to original format
             survivor_ids = {s["id"] for s in survivors}

@@ -197,3 +197,4 @@ lpt[1-9]
 !out/.gitkeep
 !data/.gitkeep
 !logs/.gitkeep
+test_filter_paths.py
