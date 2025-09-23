@@ -391,7 +391,7 @@ class NewsPipeline:
         cursor = conn.execute("""
             SELECT COUNT(*) FROM items i
             JOIN articles a ON i.id = a.item_id
-            WHERE i.pipeline_run_id = ? AND a.content IS NOT NULL AND a.content != ''
+            WHERE i.pipeline_run_id = ? AND a.extracted_text IS NOT NULL AND a.extracted_text != ''
         """, (run_id,))
         scraped_count = cursor.fetchone()[0] or 0
         

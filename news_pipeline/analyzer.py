@@ -196,19 +196,35 @@ class MetaAnalyzer:
         Generate daily digest reports for topics.
         
         Args:
-            topics: List of topics to analyze, or None for all topics
+            topics: List of topics to analyze, or None for enabled topics only
             
         Returns:
             Dictionary with topic digests
         """
         results = {}
         
-        # Get available topics if not specified
+        # Get enabled topics if not specified
         if topics is None:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.execute("SELECT DISTINCT topic FROM summaries")
-            topics = [row[0] for row in cursor.fetchall()]
-            conn.close()
+            # Load topics configuration to get only enabled topics
+            import yaml
+            try:
+                with open('config/topics.yaml', 'r', encoding='utf-8') as f:
+                    topics_config = yaml.safe_load(f)
+                
+                # Get only enabled topics
+                topics = [name for name, config in topics_config['topics'].items() 
+                         if config.get('enabled', True)]
+                
+                if not topics:
+                    self.logger.warning("No enabled topics found in topics.yaml")
+                    return {}
+                
+            except FileNotFoundError:
+                self.logger.warning("topics.yaml not found, querying database directly")
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.execute("SELECT DISTINCT topic FROM summaries")
+                topics = [row[0] for row in cursor.fetchall()]
+                conn.close()
         
         self.logger.info(f"Generating daily digests for {len(topics)} topics")
         
@@ -266,6 +282,7 @@ class MetaAnalyzer:
     def identify_trending_topics(self, days: int = 7) -> List[Dict[str, Any]]:
         """
         Identify trending topics based on recent article volume and entity mentions.
+        Only includes enabled topics from configuration.
         
         Args:
             days: Number of days to analyze
@@ -273,22 +290,41 @@ class MetaAnalyzer:
         Returns:
             List of trending topics with metrics
         """
+        # Get enabled topics from configuration
+        import yaml
+        enabled_topics = []
+        try:
+            with open('config/topics.yaml', 'r', encoding='utf-8') as f:
+                topics_config = yaml.safe_load(f)
+            
+            enabled_topics = [name for name, config in topics_config['topics'].items() 
+                             if config.get('enabled', True)]
+        except FileNotFoundError:
+            self.logger.warning("topics.yaml not found for trending analysis")
+        
+        if not enabled_topics:
+            return []
+        
         conn = sqlite3.connect(self.db_path)
         cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
         
-        # Get article counts by topic
-        cursor = conn.execute("""
+        # Create placeholders for enabled topics
+        placeholders = ','.join('?' * len(enabled_topics))
+        
+        # Get article counts by topic, filtered to enabled topics only
+        cursor = conn.execute(f"""
             SELECT s.topic, 
                    COUNT(*) as article_count,
                    AVG(i.triage_confidence) as avg_confidence,
                    COUNT(DISTINCT i.source) as source_count
             FROM summaries s
             JOIN items i ON s.item_id = i.id
-            WHERE s.created_at >= ?
+            WHERE s.created_at >= ? 
+            AND s.topic IN ({placeholders})
             GROUP BY s.topic
             HAVING article_count >= 3
             ORDER BY article_count DESC, avg_confidence DESC
-        """, (cutoff_date,))
+        """, [cutoff_date] + enabled_topics)
         
         trending = []
         for row in cursor.fetchall():
