@@ -1,26 +1,9 @@
-# Swiss Business News Digest - {{ data.date }}
+# Swiss Creditreform Business News Digest - {{ data.date }}
 
 {% if data.updated -%}
 **Last Updated:** {{ data.last_updated | datetime_format }}  
 {% endif -%}
 **Generated:** {{ data.generated_at | datetime_format }}
-
----
-
-## Executive Summary
-
-**{{ data.executive_summary.headline }}**
-
-{{ data.executive_summary.executive_summary }}
-
-{% if data.executive_summary.key_themes %}
-### Key Themes
-
-{% for theme in data.executive_summary.key_themes -%}
-- {{ theme }}
-{% endfor %}
-{% endif %}
-
 
 ---
 
