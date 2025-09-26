@@ -34,6 +34,7 @@ from news_pipeline import (
     ArticleSummarizer, MetaAnalyzer
 )
 from news_pipeline.deduplication import ArticleDeduplicator
+from news_pipeline.gpt_deduplication import GPTTitleDeduplicator
 from news_pipeline.state_manager import PipelineStateManager as StateManager
 from news_pipeline.utils import (
     setup_logging, log_step_start, log_step_complete, 
@@ -71,6 +72,7 @@ class NewsPipeline:
         self.analyzer = MetaAnalyzer(self.db_path)
         self.state_manager = StateManager(self.db_path)
         self.deduplicator = ArticleDeduplicator(self.db_path)
+        self.gpt_deduplicator = GPTTitleDeduplicator(self.db_path)
         
         # Track current pipeline run
         self.current_run_id = None
@@ -270,22 +272,30 @@ class NewsPipeline:
             )
             self.logger.info(f"Scraped: {results['step3_scraping'].get('extracted', 0)} articles")
             
-            # Step 4: Summarize ONLY scraped selected articles
-            results['step4_summarization'] = self.summarizer.summarize_for_run(
+            # Step 4: GPT Title-Based Deduplication (NEW)
+            try:
+                results['step4_gpt_deduplication'] = self.gpt_deduplicator.deduplicate_articles()
+                self.logger.info(f"GPT Deduplication: {results['step4_gpt_deduplication'].get('duplicates_marked', 0)} duplicates marked from {results['step4_gpt_deduplication'].get('clusters_found', 0)} title clusters")
+            except Exception as e:
+                self.logger.warning(f"GPT deduplication failed: {e}, continuing with all scraped articles...")
+                results['step4_gpt_deduplication'] = {"error": str(e)}
+            
+            # Step 5: Summarize ONLY unique articles (primary + unclustered)
+            results['step5_summarization'] = self.summarizer.summarize_for_run(
                 run_id=self.current_run_id,
                 limit=limit
             )
-            self.logger.info(f"Summarized: {results['step4_summarization'].get('summarized', 0)} articles")
+            self.logger.info(f"Summarized: {results['step5_summarization'].get('summarized', 0)} articles")
             
-            # Step 5: Generate Meta-Analysis
-            results['step5_export_path'] = self.build_topic_digest(export_format=export_format, run_id=self.current_run_id)
+            # Step 6: Generate Meta-Analysis
+            results['step6_export_path'] = self.build_topic_digest(export_format=export_format, run_id=self.current_run_id)
             
             # Get comprehensive pipeline stats
             results['pipeline_stats'] = self.get_enhanced_pipeline_stats(self.current_run_id)
             
             # Complete the pipeline run (mark analysis step as complete)
             self.state_manager.complete_step(self.current_run_id, 'analysis', 
-                                            results['step4_summarization'].get('summarized', 0),
+                                            results['step5_summarization'].get('summarized', 0),
                                             topic_results.get('matched', 0))
             
             # Calculate total time
