@@ -340,7 +340,7 @@ Bitte geben Sie die Ausgabe als JSON-Objekt zurück."""
         context = {
             'data': digest_data,
             'analysis': analysis,
-            'max_sources': int(os.getenv("GERMAN_REPORT_MAX_SOURCES", "5"))
+            'max_sources': int(os.getenv("GERMAN_REPORT_MAX_SOURCES", "20"))
         }
         
         # Render the template
