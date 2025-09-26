@@ -383,6 +383,44 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return articles
     
+    def _get_matched_articles_for_today(self, topic: str, cutoff_iso: str) -> List[Dict[str, Any]]:
+        """
+        Get matched articles from today for continued pipeline processing.
+        
+        Args:
+            topic: Topic to filter by
+            cutoff_iso: ISO timestamp for today's cutoff
+            
+        Returns:
+            List of matched articles from today
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        
+        # Get matched articles from today that need further pipeline processing
+        cursor = conn.execute("""
+            SELECT id, source, url, title, published_at, first_seen_at
+            FROM items 
+            WHERE triage_topic = ? 
+            AND is_match = 1
+            AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+            ORDER BY triage_confidence DESC, first_seen_at DESC
+        """, (topic, cutoff_iso, cutoff_iso))
+        
+        articles = []
+        for row in cursor.fetchall():
+            articles.append({
+                'id': row['id'],
+                'source': row['source'],
+                'url': row['url'],
+                'title': row['title'],
+                'published_at': row['published_at'],
+                'first_seen_at': row['first_seen_at']
+            })
+        
+        conn.close()
+        self.logger.info(f"Retrieved {len(articles)} matched articles from today for continued pipeline processing")
+        return articles
     
     def calculate_priority_score(self, article: Dict[str, Any]) -> float:
         """
@@ -520,9 +558,22 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         log_step_start(self.logger, "Creditreform-Focused AI Filtering", 
                       f"Single-pass classification for actionable insights ({mode} mode)")
         
-        # Get active topics (only enabled ones)
-        active_topics = {name: config for name, config in self.topics_config['topics'].items() 
-                        if config.get('enabled', True)}
+        # Get active topics (only enabled ones) - add defensive checks
+        if not self.topics_config:
+            self.logger.error("ERROR: Topics configuration is None")
+            return {"error": "Topics configuration not loaded"}
+        
+        if 'topics' not in self.topics_config:
+            self.logger.error("ERROR: No 'topics' section found in configuration")
+            return {"error": "Topics section missing from configuration"}
+        
+        topics_dict = self.topics_config['topics']
+        if topics_dict is None:
+            self.logger.error("ERROR: Topics section is None")
+            return {"error": "Topics section is None"}
+        
+        active_topics = {name: config for name, config in topics_dict.items() 
+                        if config and config.get('enabled', True)}
         
         if not active_topics:
             self.logger.warning("WARNING: No enabled topics found")
@@ -544,10 +595,48 @@ Be precise and conservative - only mark as relevant if clearly related to the to
             unfiltered = self.get_unfiltered_articles(force_refresh=False, include_prefiltered=False, topic=target_topic)
         
         if not unfiltered:
-            self.logger.warning("WARNING: No unfiltered articles found - nothing to process")
-            if not skip_prefilter and mode != "express":
-                self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
-            return {"creditreform_insights": {"processed": 0, "matched": 0}}
+            self.logger.warning("WARNING: No unfiltered articles found")
+            
+            # Check if there are matched articles from today that need further processing
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            
+            TZ = ZoneInfo("Europe/Zurich")
+            now = datetime.now(TZ)
+            topic_config = active_topics[target_topic]
+            if topic_config.get('max_article_age_days', None) is not None and topic_config.get('max_article_age_days') <= 0:
+                cutoff_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                cutoff_iso = cutoff_date.isoformat()
+                
+                # Check for matched articles from today that need processing
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM items 
+                    WHERE triage_topic = 'creditreform_insights' 
+                    AND is_match = 1
+                    AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+                """, (cutoff_iso, cutoff_iso))
+                matched_today = cursor.fetchone()[0]
+                conn.close()
+                
+                if matched_today > 0:
+                    self.logger.info(f"SOLUTION: Found {matched_today} matched articles from today that need processing")
+                    self.logger.info("Automatically enabling skip_prefilter to continue with matched articles...")
+                    skip_prefilter = True
+                    # Get already-classified matched articles from today for continued pipeline processing
+                    unfiltered = self._get_matched_articles_for_today(target_topic, cutoff_iso)
+                    if unfiltered:
+                        self.logger.info(f"Retrieved {len(unfiltered)} matched articles from today for continued processing")
+                    else:
+                        self.logger.warning("No matched articles found for today")
+                        return {"creditreform_insights": {"processed": 0, "matched": 0}}
+                else:
+                    self.logger.info("No matched articles from today found - nothing to process")
+                    return {"creditreform_insights": {"processed": 0, "matched": 0}}
+            else:
+                if not skip_prefilter and mode != "express":
+                    self.logger.info("INFO: Try force refresh mode by clearing recent classification data")
+                return {"creditreform_insights": {"processed": 0, "matched": 0}}
         
         topic_config = active_topics[target_topic]
         
@@ -696,14 +785,25 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         """
         Build enhanced system prompt with Creditreform business context.
         """
+        # Add defensive checks for None values
+        if not topic_config:
+            topic_config = {}
+        
         description = topic_config.get('description', '')
         focus_areas = topic_config.get('focus_areas', {})
         
+        # Ensure focus_areas is not None
+        if focus_areas is None:
+            focus_areas = {}
+        
         focus_text = ""
-        for area, info in focus_areas.items():
-            keywords = info.get('keywords', [])
-            priority = info.get('priority', 'medium')
-            focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
+        if isinstance(focus_areas, dict):
+            for area, info in focus_areas.items():
+                if info and isinstance(info, dict):
+                    keywords = info.get('keywords', [])
+                    priority = info.get('priority', 'medium')
+                    if keywords:
+                        focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
         
         return f"""You are an expert Swiss financial news analyst specializing in B2B credit risk assessment.
 
@@ -908,6 +1008,17 @@ Be selective - only mark articles that provide actionable business intelligence.
         # Step 1: Run classification on articles belonging to this run
         results = self.filter_for_creditreform(mode)
         
+        # Check if any articles were actually processed
+        total_processed = sum(topic_results.get('processed', 0) for topic_results in results.values())
+        total_matched = sum(topic_results.get('matched', 0) for topic_results in results.values())
+        
+        if total_processed == 0:
+            self.logger.info("No articles processed in this run - skipping article assignment and selection")
+            # Add selection info showing 0 selected
+            for topic, topic_results in results.items():
+                topic_results['selected_for_processing'] = 0
+            return results
+        
         # Step 2: Mark ONLY matched articles from this run (not all triage_topic articles)
         conn = sqlite3.connect(self.db_path)
         
@@ -920,7 +1031,7 @@ Be selective - only mark articles that provide actionable business intelligence.
         """, (run_id,))
         already_assigned = cursor.fetchone()[0]
         
-        if already_assigned == 0:
+        if already_assigned == 0 and total_matched > 0:
             # No articles assigned yet - this means we need to assign the newly classified ones
             # But only assign those without existing summaries to prevent validation errors
             conn.execute("""
@@ -951,8 +1062,8 @@ Be selective - only mark articles that provide actionable business intelligence.
     def _select_top_articles(self, run_id: str) -> int:
         """
         Select top N articles for processing.
-        CRITICAL: Excludes already-summarized articles!
-        Uses topic-specific thresholds when available instead of global threshold.
+        FIXED: Only work with newly matched articles to prevent state transition errors.
+        If no new matches found, gracefully return 0.
         
         Args:
             run_id: Pipeline run identifier
@@ -962,17 +1073,50 @@ Be selective - only mark articles that provide actionable business intelligence.
         """
         conn = sqlite3.connect(self.db_path)
         
+        # First check if there are any newly matched articles from this run
+        cursor = conn.execute("""
+            SELECT COUNT(*) FROM items 
+            WHERE pipeline_run_id = ? AND is_match = 1 AND triage_topic = 'creditreform_insights'
+        """, (run_id,))
+        new_matches = cursor.fetchone()[0]
+        
+        if new_matches == 0:
+            self.logger.info("No new matches found in this run - skipping article selection")
+            conn.close()
+            return 0
+        
         config = self.pipeline_config['pipeline']['filtering']
         global_threshold = config.get('confidence_threshold', 0.70)
         max_articles = config.get('max_articles_to_process', 35)
         
-        # Determine which topic we're working with
+        # Use the same date logic as get_unfiltered_articles - avoid zoneinfo import issues
+        try:
+            from datetime import datetime, timedelta
+            # Try to import zoneinfo, fallback to basic datetime if not available
+            try:
+                from zoneinfo import ZoneInfo
+                TZ = ZoneInfo("Europe/Zurich")
+                today = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+            except ImportError:
+                # Fallback for Python < 3.9 or systems without zoneinfo
+                import pytz
+                TZ = pytz.timezone("Europe/Zurich")
+                today = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            today_iso = today.isoformat()
+        except Exception as e:
+            self.logger.warning(f"Date handling error: {e}, using simple date filter")
+            # Fallback to simple today filter
+            today_iso = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        
+        # Determine which topic we're working with - check ALL matched articles, not just current run
         cursor = conn.execute("""
             SELECT DISTINCT triage_topic 
             FROM items 
-            WHERE pipeline_run_id = ? AND is_match = 1
+            WHERE is_match = 1 
+            AND triage_topic = 'creditreform_insights'
             LIMIT 1
-        """, (run_id,))
+        """)
         
         topic_row = cursor.fetchone()
         if topic_row:
@@ -985,61 +1129,52 @@ Be selective - only mark articles that provide actionable business intelligence.
             threshold = global_threshold
             self.logger.info(f"Using global threshold: {threshold} (no topic found)")
         
-        # Reset selection state (avoid stage transition errors)
+        # Reset selection state for ALL articles (not just current run)
         conn.execute("""
             UPDATE items 
             SET selected_for_processing = 0,
                 selection_rank = NULL
-            WHERE pipeline_run_id = ?
-        """, (run_id,))
+            WHERE triage_topic = 'creditreform_insights'
+            AND is_match = 1
+            AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+        """, (today_iso, today_iso))
         
-        # Update pipeline_stage only where it needs to change
-        conn.execute("""
-            UPDATE items 
-            SET pipeline_stage = 'matched'
-            WHERE pipeline_run_id = ? 
-            AND is_match = 1 
-            AND pipeline_stage != 'matched'
-        """, (run_id,))
-        
-        conn.execute("""
-            UPDATE items 
-            SET pipeline_stage = 'filtered_out'
-            WHERE pipeline_run_id = ? 
-            AND is_match = 0 
-            AND pipeline_stage != 'filtered_out'
-        """, (run_id,))
-        
-        # Select top articles that DON'T have summaries
+        # CRITICAL FIX: Select top articles from ALL of today, not just current run
+        # This includes articles that were matched in previous runs but never selected
         cursor = conn.execute("""
-            SELECT i.id, i.triage_confidence, i.title
+            SELECT i.id, i.triage_confidence, i.title, i.pipeline_run_id
             FROM items i
             LEFT JOIN summaries s ON i.id = s.item_id
             LEFT JOIN articles a ON i.id = a.item_id
-            WHERE i.pipeline_run_id = ? 
+            WHERE i.triage_topic = 'creditreform_insights'
             AND i.is_match = 1
             AND i.triage_confidence >= ?
+            AND (i.published_at >= ? OR (i.published_at IS NULL AND i.first_seen_at >= ?))  -- Today's articles
             AND s.item_id IS NULL  -- No existing summary
             AND (a.item_id IS NULL OR a.failure_count < 3)  -- Not repeatedly failed
             ORDER BY i.triage_confidence DESC, i.first_seen_at DESC
             LIMIT ?
-        """, (run_id, threshold, max_articles))
+        """, (threshold, today_iso, today_iso, max_articles))
         
         selected_articles = cursor.fetchall()
         
-        # Mark selected articles with rank
-        for rank, (article_id, confidence, title) in enumerate(selected_articles, 1):
+        # Mark selected articles with rank and assign to current run
+        for rank, (article_id, confidence, title, old_run_id) in enumerate(selected_articles, 1):
             conn.execute("""
                 UPDATE items 
                 SET selected_for_processing = 1,
                     selection_rank = ?,
-                    pipeline_stage = 'selected'
-                WHERE id = ? AND pipeline_run_id = ?
-            """, (rank, article_id, run_id))
+                    pipeline_stage = 'selected',
+                    pipeline_run_id = ?
+                WHERE id = ?
+            """, (rank, run_id, article_id))
+            
+            if old_run_id != run_id:
+                self.logger.info(f"Re-assigned article from run {old_run_id} to {run_id}")
             
             self.logger.info(f"Selected rank {rank}: {title[:60]}... (confidence: {confidence:.2f})")
         
-        # Log excluded articles
+        # Log excluded articles from today
         cursor = conn.execute("""
             SELECT 
                 COUNT(CASE WHEN s.item_id IS NOT NULL THEN 1 END) as already_summarized,
@@ -1047,10 +1182,11 @@ Be selective - only mark articles that provide actionable business intelligence.
             FROM items i
             LEFT JOIN summaries s ON i.id = s.item_id
             LEFT JOIN articles a ON i.id = a.item_id
-            WHERE i.pipeline_run_id = ? 
+            WHERE i.triage_topic = 'creditreform_insights'
             AND i.is_match = 1
             AND i.triage_confidence >= ?
-        """, (run_id, threshold))
+            AND (i.published_at >= ? OR (i.published_at IS NULL AND i.first_seen_at >= ?))
+        """, (threshold, today_iso, today_iso))
         
         stats = cursor.fetchone()
         if stats[0] > 0:
@@ -1061,6 +1197,8 @@ Be selective - only mark articles that provide actionable business intelligence.
         conn.commit()
         conn.close()
         
+        self.logger.info(f"FIXED: Selected {len(selected_articles)} articles from today (including from previous runs)")
+        
         return len(selected_articles)
     
     def save_classification(self, article_id: int, topic: str, classification: Dict[str, Any], 
@@ -1070,7 +1208,8 @@ Be selective - only mark articles that provide actionable business intelligence.
         
         try:
             if run_id:
-                # Include pipeline run ID and stage
+                # FIXED: Prevent invalid stage transitions by checking current state
+                # Only update stage if it's actually different from current state
                 conn.execute("""
                     UPDATE items 
                     SET triage_topic = ?, 
@@ -1078,8 +1217,10 @@ Be selective - only mark articles that provide actionable business intelligence.
                         is_match = ?,
                         pipeline_run_id = ?,
                         pipeline_stage = CASE 
-                            WHEN ? = 1 THEN 'matched'
-                            ELSE 'filtered_out'
+                            WHEN pipeline_stage IN ('selected', 'scraped', 'summarized') THEN pipeline_stage
+                            WHEN ? = 1 AND pipeline_stage != 'matched' THEN 'matched'
+                            WHEN ? = 0 AND pipeline_stage != 'filtered_out' THEN 'filtered_out'
+                            ELSE pipeline_stage
                         END
                     WHERE id = ?
                 """, (
@@ -1087,6 +1228,7 @@ Be selective - only mark articles that provide actionable business intelligence.
                     classification['confidence'],
                     1 if classification['is_match'] else 0,
                     run_id,
+                    1 if classification['is_match'] else 0,
                     1 if classification['is_match'] else 0,
                     article_id
                 ))
@@ -1106,8 +1248,24 @@ Be selective - only mark articles that provide actionable business intelligence.
                 ))
             conn.commit()
             
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e):
+                # Handle database locking with retry logic
+                self.logger.warning(f"Database locked for article {article_id}, retrying in 1 second...")
+                import time
+                time.sleep(1)
+                try:
+                    conn.commit()
+                    self.logger.info(f"Retry successful for article {article_id}")
+                except Exception as retry_error:
+                    self.logger.error(f"Retry failed for article {article_id}: {retry_error}")
+                    conn.rollback()
+            else:
+                self.logger.error(f"Database error saving classification for article {article_id}: {e}")
+                conn.rollback()
         except Exception as e:
             self.logger.error(f"Error saving classification for article {article_id}: {e}")
+            conn.rollback()
         finally:
             conn.close()
     

@@ -15,6 +15,8 @@ from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 
+from .paths import template_path, resource_path
+
 # Load environment variables
 load_dotenv()
 
@@ -298,8 +300,9 @@ Bitte geben Sie die Ausgabe als JSON-Objekt zurück."""
             digest_data: Original digest data
             analysis: Generated analysis
         """
-        # Set up Jinja2 environment
-        env = Environment(loader=FileSystemLoader('templates'))
+        # Set up Jinja2 environment - use proper path resolution
+        templates_dir = str(template_path())
+        env = Environment(loader=FileSystemLoader(templates_dir))
 
         # Define custom filters
         def datetime_format(value, format='%Y-%m-%d %H:%M:%S'):

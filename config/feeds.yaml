@@ -1,15 +1,12 @@
 rss:
   # Core, known-good
-  blick:               ["https://www.blick.ch/rss.xml"]
+  #blick:               ["https://www.blick.ch/rss.xml"]
   nzz:                 ["https://www.nzz.ch/recent.rss","https://www.nzz.ch/wirtschaft.rss","https://www.nzz.ch/schweiz.rss"]
 
   # Tamedia titles → use official partner feeds (avoid malformed *.ch/rss)
   tages_anzeiger:      ["https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/front",
                         "https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/schweiz",
                         "https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/ticker"]
-  bazonline:           ["https://partner-feeds.publishing.tamedia.ch/rss/bazonline/"]
-  berner_zeitung:      ["https://partner-feeds.publishing.tamedia.ch/rss/bernerzeitung/",
-                        "https://partner-feeds.publishing.tamedia.ch/rss/bernerzeitung/kanton-bern"]
   der_bund:            ["https://partner-feeds.publishing.tamedia.ch/rss/derbund/",
                         "https://partner-feeds.publishing.tamedia.ch/rss/derbund/schweiz",
                         "https://partner-feeds.publishing.tamedia.ch/rss/derbund/wirtschaft",
@@ -22,20 +19,17 @@ rss:
                         "https://www.srf.ch/news/bnf/rss/1890",    # Schweiz
                         "https://www.srf.ch/news/bnf/rss/1926"]    # Wirtschaft
 
-  # SWI swissinfo (multi-lang)
-  swissinfo:           ["https://cdn.prod.swi-services.ch/rss/de/rssxml/latest-news/rss",
-                        "https://cdn.prod.swi-services.ch/rss/eng/rssxml/latest-news/rss",
-                        "https://cdn.prod.swi-services.ch/rss/fr/rssxml/latest-news/rss"]
+  swissinfo:           ["https://cdn.prod.swi-services.ch/rss/de/rssxml/latest-news/rss"]
 
   # RTS (Romandie)
-  rts_info:            ["https://www.rts.ch/info/?flux=rss"]
+  # rts_info:            ["https://www.rts.ch/info/?flux=rss"]
 
   # Watson (works as-is)
-  watson:              ["https://www.watson.ch/api/1.0/rss.xml"]
+  # watson:              ["https://www.watson.ch/api/1.0/rss.xml"]
 
   # Ticino – avoid expired cert host; use media.tio.ch feeds
-  tio:                 ["https://media.tio.ch/files/domains/tio.ch/rss/feed_rss.xml",
-                        "https://media.tio.ch/files/domains/tio.ch/rss/rss_ticino.xml"]
+  # tio:                 ["https://media.tio.ch/files/domains/tio.ch/rss/feed_rss.xml",
+  #                       "https://media.tio.ch/files/domains/tio.ch/rss/rss_ticino.xml"]
 
   # Finance / regulatory (high-signal for Creditreform)
   finanzen_ch:         ["https://www.finanzen.ch/rss/news", "https://www.finanzen.ch/rss/analysen"]
@@ -43,8 +37,8 @@ rss:
   finma_sanctions:     ["https://www.finma.ch/en/rss/sanktionen/"]
 
 sitemaps:
-  20min:               ["https://www.20min.ch/sitemaps/de/news.xml"]   # parse <url><loc>, <news:title>, <news:publication_date>
-  nau:                 ["https://www.nau.ch/_sitemap"]                 # index of sitemaps
+  # 20min:               ["https://www.20min.ch/sitemaps/de/news.xml"]   # parse <url><loc>, <news:title>, <news:publication_date>
+  # nau:                 ["https://www.nau.ch/_sitemap"]                 # index of sitemaps
 
 html:
   businessclassost:

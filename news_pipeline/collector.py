@@ -509,38 +509,59 @@ class NewsCollector:
         results = {'rss': 0, 'sitemaps': 0, 'html': 0, 'json': 0, 'google_news': 0}
         all_articles = []
         
+        # Add defensive checks for None config sections
+        if not self.config:
+            self.logger.error("ERROR: Configuration is None or empty")
+            results['total_collected'] = 0
+            results['after_dedup'] = 0
+            results['saved'] = 0
+            return results
+        
         # Collect from RSS feeds
-        if 'rss' in self.config:
-            for source, urls in self.config['rss'].items():
-                articles = self.collect_from_rss(urls, source)
-                all_articles.extend(articles)
-                results['rss'] += len(articles)
+        if 'rss' in self.config and self.config['rss'] is not None:
+            rss_config = self.config['rss']
+            if isinstance(rss_config, dict):
+                for source, urls in rss_config.items():
+                    if urls:  # Ensure urls is not None
+                        articles = self.collect_from_rss(urls, source)
+                        all_articles.extend(articles)
+                        results['rss'] += len(articles)
         
         # Collect from sitemaps
-        if 'sitemaps' in self.config:
-            for source, urls in self.config['sitemaps'].items():
-                articles = self.collect_from_sitemaps(urls, source)
-                all_articles.extend(articles)
-                results['sitemaps'] += len(articles)
+        if 'sitemaps' in self.config and self.config['sitemaps'] is not None:
+            sitemaps_config = self.config['sitemaps']
+            if isinstance(sitemaps_config, dict):
+                for source, urls in sitemaps_config.items():
+                    if urls:  # Ensure urls is not None
+                        articles = self.collect_from_sitemaps(urls, source)
+                        all_articles.extend(articles)
+                        results['sitemaps'] += len(articles)
         
         # Collect from HTML listings
-        if 'html' in self.config:
-            articles = self.collect_from_html_listings(self.config['html'])
-            all_articles.extend(articles)
-            results['html'] += len(articles)
+        if 'html' in self.config and self.config['html'] is not None:
+            html_config = self.config['html']
+            if isinstance(html_config, dict):
+                articles = self.collect_from_html_listings(html_config)
+                all_articles.extend(articles)
+                results['html'] += len(articles)
 
         # Collect from JSON APIs (e.g., SHAB)
-        if 'json' in self.config:
-            articles = self.collect_from_json_apis(self.config['json'])
-            all_articles.extend(articles)
-            results['json'] += len(articles)
+        if 'json' in self.config and self.config['json'] is not None:
+            json_config = self.config['json']
+            if isinstance(json_config, dict):
+                articles = self.collect_from_json_apis(json_config)
+                all_articles.extend(articles)
+                results['json'] += len(articles)
         
         # Collect from additional RSS feeds (high-quality direct sources)
-        if 'additional_rss' in self.config:
-            for source, urls in self.config['additional_rss'].items():
-                articles = self.collect_from_rss(urls, source)
-                all_articles.extend(articles)
-                results['rss'] += len(articles)  # Count as RSS feeds
+        if 'additional_rss' in self.config and self.config['additional_rss'] is not None:
+            additional_rss_config = self.config['additional_rss']
+            if isinstance(additional_rss_config, dict):
+                for source, urls in additional_rss_config.items():
+                    if urls:  # Ensure urls is not None
+                        articles = self.collect_from_rss(urls, source)
+                        all_articles.extend(articles)
+                        results['rss'] += len(articles)  # Count as RSS feeds
         
         # DISABLED: Google News collection (causes redirect loops)
         # if 'google_news_rss' in self.config:

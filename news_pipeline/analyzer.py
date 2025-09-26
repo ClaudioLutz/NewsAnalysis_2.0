@@ -18,7 +18,7 @@ load_dotenv(override=True)
 from openai import OpenAI
 
 from news_pipeline.language_config import get_language_config
-from .paths import config_path, safe_open
+from .paths import config_path, safe_open, output_path
 
 
 class MetaAnalyzer:
@@ -440,13 +440,13 @@ class MetaAnalyzer:
                 'error': str(e)[:200]
             }
     
-    def export_daily_digest(self, output_path: str | None = None, format: str = "json", run_id: str | None = None) -> str:
+    def export_daily_digest(self, output_file_path: str | None = None, format: str = "json", run_id: str | None = None) -> str:
         """
         Export daily digest to JSON file. Always generates German rating agency report automatically.
         Note: Markdown format has been disabled as the German rating report serves as the final output.
         
         Args:
-            output_path: Output file path
+            output_file_path: Output file path
             format: Export format (only "json" supported, markdown disabled)
             run_id: Optional pipeline run ID to filter summaries
             
@@ -492,21 +492,23 @@ class MetaAnalyzer:
         # Generate fresh daily digests with summaries data
         digests = self.generate_daily_digests()
         
-        # Determine output path
-        if output_path is None:
+        # Determine output path using proper path utilities
+        if output_file_path is None:
             date_str = datetime.now().strftime('%Y-%m-%d')
-            output_path = f"out/digests/daily_digest_{date_str}.json"
+            digest_output_path = str(output_path('digests', f'daily_digest_{date_str}.json'))
+        else:
+            digest_output_path = output_file_path
         
         # Ensure directory exists
-        dir_path = os.path.dirname(output_path)
+        dir_path = os.path.dirname(digest_output_path)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
         
         # Check if file exists for today and preserve original creation time
         original_created_at = None
-        if os.path.exists(output_path):
+        if os.path.exists(digest_output_path):
             try:
-                with open(output_path, 'r', encoding='utf-8') as f:
+                with open(digest_output_path, 'r', encoding='utf-8') as f:
                     existing_data = json.load(f)
                     # Preserve the original creation time from first run
                     if 'created_at' in existing_data:
@@ -541,18 +543,18 @@ class MetaAnalyzer:
             export_data['last_updated'] = current_time
         
         # Export as JSON
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(digest_output_path, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
         
         action = "Updated" if original_created_at else "Created"
-        self.logger.info(f"{action} daily digest: {output_path}")
+        self.logger.info(f"{action} daily digest: {digest_output_path}")
         
         # Auto-generate German rating report (this is the final desired output)
         try:
             from news_pipeline.german_rating_formatter import format_daily_digest_to_german_markdown
-            german_report_path = format_daily_digest_to_german_markdown(output_path)
+            german_report_path = format_daily_digest_to_german_markdown(digest_output_path)
             self.logger.info(f"Auto-generated German rating report: {german_report_path}")
         except Exception as e:
             self.logger.warning(f"Failed to generate German rating report: {e}")
         
-        return output_path
+        return digest_output_path
