@@ -29,6 +29,7 @@ except ImportError:
 # Import our incremental digest components
 from news_pipeline.incremental_digest import IncrementalDigestGenerator, DigestStateManager
 from news_pipeline.language_config import get_language_config
+from news_pipeline.cross_run_deduplication import CrossRunTopicDeduplicator
 
 
 class EnhancedMetaAnalyzer:
@@ -106,6 +107,24 @@ class EnhancedMetaAnalyzer:
             conn.close()
         
         self.logger.info(f"Generating incremental daily digests for {len(topics)} topics on {date}")
+        
+        # NEW: Step 3.1 - Cross-Run Topic Deduplication
+        try:
+            cross_run_dedup = CrossRunTopicDeduplicator(self.db_path)
+            dedup_results = cross_run_dedup.deduplicate_against_previous_runs(date)
+            
+            self.logger.info(
+                f"Cross-run deduplication complete: "
+                f"{dedup_results.get('duplicates_found', 0)} duplicates filtered, "
+                f"{dedup_results.get('unique_articles', 0)} unique articles proceeding"
+            )
+            
+        except Exception as e:
+            self.logger.warning(
+                f"Cross-run deduplication failed (Step 3.1): {e}. "
+                f"Continuing with all articles."
+            )
+            dedup_results = {'error': str(e)}
         
         results = {}
         api_calls_made = 0
