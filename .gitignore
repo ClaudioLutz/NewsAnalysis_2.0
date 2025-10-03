@@ -198,3 +198,10 @@ lpt[1-9]
 !data/.gitkeep
 !logs/.gitkeep
 test_filter_paths.py
+
+
+
+
+#bmad
+.bmad-core/
+.clinerules/
