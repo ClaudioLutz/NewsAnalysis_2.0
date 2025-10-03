@@ -1,0 +1,31 @@
+# Test Configuration for News Analysis Pipeline
+# Use this configuration to run the pipeline with limited test data
+
+pipeline:
+  filtering:
+    confidence_threshold: 0.7  # Lower threshold for testing
+    max_articles_to_process: 5  # Process only 5 articles in test mode
+  
+  reporting:
+    show_funnel_stats: true
+    show_selection_details: true
+  
+  scraping:
+    max_retries: 2  # Fewer retries for faster testing
+    timeout: 15  # Shorter timeout for testing
+  
+  summarization:
+    max_summary_length: 300  # Shorter summaries for testing
+    min_content_length: 200  # Lower minimum for testing
+  
+  topics:
+    creditreform_insights:
+      confidence_threshold: 0.65  # Lower threshold for more matches in test
+      max_articles: 5  # Process only 5 articles
+
+# Test mode settings
+test_mode:
+  enabled: true
+  max_feeds_per_source: 2  # Limit number of feeds to check
+  max_items_per_feed: 10  # Limit items collected per feed
+  skip_slow_sources: true  # Skip sources that are slow to respond

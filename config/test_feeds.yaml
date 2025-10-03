@@ -1,0 +1,24 @@
+# Test Feed Configuration - Minimal set for testing
+# This configuration uses only a few reliable feeds for quick testing
+
+rss:
+  # Use only 1-2 reliable feeds for testing
+  nzz:                 ["https://www.nzz.ch/recent.rss"]  # Single feed instead of 3
+  
+  # One Tamedia feed for variety
+  tages_anzeiger:      ["https://partner-feeds.publishing.tamedia.ch/rss/tagesanzeiger/front"]
+  
+  # Finance feed (high relevance for Creditreform)
+  finanzen_ch:         ["https://www.finanzen.ch/rss/news"]
+
+# Disable sitemaps in test mode (they're slow)
+sitemaps: {}
+
+# Disable HTML scraping in test mode (slower)
+html: {}
+
+# Disable Google News (causes issues)
+google_news_rss_DISABLED: {}
+
+# Disable additional RSS in test mode
+additional_rss: {}
