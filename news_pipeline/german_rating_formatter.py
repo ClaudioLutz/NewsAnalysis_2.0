@@ -107,8 +107,10 @@ class GermanRatingFormatter:
     # --- NEW: helpers -------------------------------------------------------
     def _resolve_source_metadata(self, source_urls: list[str]) -> list[dict]:
         """
-        Map each URL to {'url': str, 'title': Optional[str]} using the SQLite DB (items table).
-        Falls back to None title if not resolvable.
+        Map each URL to {'url': str, 'title': Optional[str], 'summary': Optional[str], 'key_points': Optional[list]} 
+        using the SQLite DB (items and summaries tables).
+        Generates key points from summary using GPT if available.
+        Falls back to None title/summary if not resolvable.
         """
         results: list[dict] = []
         if not source_urls:
@@ -123,26 +125,122 @@ class GermanRatingFormatter:
                 # Try to resolve by exact url or normalized_url; prefer newest hit
                 cur.execute(
                     """
-                    SELECT title, url
-                    FROM items
-                    WHERE url = ? OR normalized_url = ?
-                    ORDER BY id DESC
+                    SELECT i.id, i.title, i.url
+                    FROM items i
+                    WHERE i.url = ? OR i.normalized_url = ?
+                    ORDER BY i.id DESC
                     LIMIT 1
                     """,
                     (url, url),
                 )
                 row = cur.fetchone()
-                title = (row["title"].strip() if row and row["title"] else None)
-                results.append({"url": url, "title": title})
+                if row:
+                    title = row["title"].strip() if row["title"] else None
+                    item_id = row["id"]
+                    
+                    # Get the summary for this item
+                    cur.execute(
+                        """
+                        SELECT summary
+                        FROM summaries
+                        WHERE item_id = ?
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        (item_id,),
+                    )
+                    summary_row = cur.fetchone()
+                    summary = summary_row["summary"] if summary_row and summary_row["summary"] else None
+                    
+                    # Generate key points from summary
+                    key_points = self._generate_article_key_points(summary) if summary else None
+                    
+                    if key_points:
+                        self.logger.info(f"Generated {len(key_points)} key points for article: {title[:50] if title else url[:50]}")
+                    else:
+                        self.logger.warning(f"No key points generated for article: {title[:50] if title else url[:50]}")
+                    
+                    results.append({"url": url, "title": title, "summary": summary, "key_points": key_points})
+                else:
+                    results.append({"url": url, "title": None, "summary": None, "key_points": None})
         except Exception as e:
-            self.logger.warning(f"Could not resolve titles from DB: {e}")
-            results = [{"url": u, "title": None} for u in source_urls]
+            self.logger.warning(f"Could not resolve titles/summaries from DB: {e}")
+            results = [{"url": u, "title": None, "summary": None, "key_points": None} for u in source_urls]
         finally:
             try:
                 conn.close()
             except Exception:
                 pass
         return results
+    
+    def _generate_article_key_points(self, summary: str) -> Optional[list[str]]:
+        """
+        Generate exactly 3 concise key bullet points from an article summary using GPT-5.
+        
+        Args:
+            summary: Article summary text
+            
+        Returns:
+            List of exactly 3 key points or None if generation fails
+        """
+        if not self.client or not summary:
+            return None
+        
+        try:
+            instructions = """Extract exactly 3 concise, easy-to-read bullet points from the article summary.
+
+Requirements:
+- Each point must be clear, direct, and understandable
+- Use simple, concrete language - avoid jargon where possible
+- Keep each point to 1-2 short sentences maximum
+- Focus on the most important facts or implications
+- Make it scannable and easy on the eyes
+
+Return only the 3 bullet points, one per line, starting with a dash (-)."""
+
+            response = self.client.responses.create(
+                model=os.getenv("MODEL_ANALYSIS", "gpt-5"),
+                instructions=instructions,
+                input=[{"role": "user", "content": f"Article summary:\n{summary}"}],
+                max_output_tokens=1000,
+                reasoning={"effort": "low"}
+            )
+            
+            content = (response.output_text or "").strip()
+            if not content:
+                self.logger.warning("GPT returned empty output_text for key points")
+                return None
+            
+            self.logger.debug(f"GPT response for key points: {content[:200]}")
+            
+            # Parse bullet points from response
+            lines = content.split('\n')
+            key_points = []
+            for line in lines:
+                line = line.strip()
+                # Skip empty lines
+                if not line:
+                    continue
+                # Remove bullet markers if present
+                if line.startswith('- ') or line.startswith('* '):
+                    line = line[2:]
+                elif line.startswith('• '):
+                    line = line[2:]
+                # Remove numbering if present
+                import re
+                line = re.sub(r'^\d+\.\s*', '', line)
+                
+                if line:
+                    key_points.append(line)
+            
+            if not key_points:
+                self.logger.warning(f"Could not parse any key points from GPT response: {content[:100]}")
+            
+            return key_points if key_points else None
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to generate key points: {e}")
+            return None
 
     def _fetch_fulltext_by_url(self, url: str) -> Optional[str]:
         """
