@@ -73,7 +73,8 @@ class GermanRatingFormatter:
                 
                 # Return a placeholder path to maintain API compatibility
                 report_date = digest_data.get('date', datetime.now().strftime('%Y-%m-%d'))
-                output_filename = f"bonitaets_tagesanalyse_{report_date}.md"
+                report_number = self._get_next_report_number(output_dir, report_date)
+                output_filename = f"bonitaets_tagesanalyse_{report_date}_{report_number}.md"
                 output_path = os.path.join(output_dir, output_filename)
                 return output_path
             
@@ -83,8 +84,9 @@ class GermanRatingFormatter:
             # Create output directory
             os.makedirs(output_dir, exist_ok=True)
             
-            # Generate output filename
-            output_filename = f"bonitaets_tagesanalyse_{report_date}.md"
+            # Generate output filename with sequential numbering
+            report_number = self._get_next_report_number(output_dir, report_date)
+            output_filename = f"bonitaets_tagesanalyse_{report_date}_{report_number}.md"
             output_path = os.path.join(output_dir, output_filename)
             
             # Generate analysis using sequential thinking (if available)
@@ -104,6 +106,38 @@ class GermanRatingFormatter:
             self.logger.error(f"Error generating German rating report: {e}")
             raise
 
+    def _get_next_report_number(self, output_dir: str, report_date: str) -> int:
+        """
+        Get the next sequential number for today's reports.
+        
+        Args:
+            output_dir: Directory containing reports
+            report_date: Date string in YYYY-MM-DD format
+            
+        Returns:
+            Next sequential number (1, 2, 3, etc.)
+        """
+        import glob
+        pattern = os.path.join(output_dir, f"bonitaets_tagesanalyse_{report_date}_*.md")
+        existing = glob.glob(pattern)
+        
+        if not existing:
+            return 1
+        
+        # Extract numbers from existing files
+        numbers = []
+        for filepath in existing:
+            basename = os.path.basename(filepath)
+            # Extract number between last _ and .md
+            try:
+                # Split by _ and get last part, then remove .md
+                num_str = basename.split('_')[-1].replace('.md', '')
+                numbers.append(int(num_str))
+            except (ValueError, IndexError):
+                continue
+        
+        return max(numbers) + 1 if numbers else 1
+    
     # --- NEW: helpers -------------------------------------------------------
     def _resolve_source_metadata(self, source_urls: list[str]) -> list[dict]:
         """

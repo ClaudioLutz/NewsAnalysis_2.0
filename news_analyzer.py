@@ -31,8 +31,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from news_pipeline import (
     NewsCollector, AIFilter, ContentScraper, 
-    ArticleSummarizer, MetaAnalyzer
+    ArticleSummarizer
 )
+from news_pipeline.enhanced_analyzer import EnhancedMetaAnalyzer
 from news_pipeline.deduplication import ArticleDeduplicator
 from news_pipeline.gpt_deduplication import GPTTitleDeduplicator
 from news_pipeline.state_manager import PipelineStateManager as StateManager
@@ -69,7 +70,7 @@ class NewsPipeline:
         self.filter = AIFilter(self.db_path)
         self.scraper = ContentScraper(self.db_path)
         self.summarizer = ArticleSummarizer(self.db_path)
-        self.analyzer = MetaAnalyzer(self.db_path)
+        self.analyzer = EnhancedMetaAnalyzer(self.db_path)
         self.state_manager = StateManager(self.db_path)
         self.deduplicator = ArticleDeduplicator(self.db_path)
         self.gpt_deduplicator = GPTTitleDeduplicator(self.db_path)
@@ -287,8 +288,12 @@ class NewsPipeline:
             )
             self.logger.info(f"Summarized: {results['step5_summarization'].get('summarized', 0)} articles")
             
-            # Step 6: Generate Meta-Analysis
-            results['step6_export_path'] = self.build_topic_digest(export_format=export_format, run_id=self.current_run_id)
+            # Step 6: Generate Meta-Analysis using EnhancedMetaAnalyzer
+            results['step6_export_path'] = self.analyzer.export_enhanced_daily_digest(
+                output_path=None,
+                format=export_format,
+                force_full_regeneration=False
+            )
             
             # Get comprehensive pipeline stats
             results['pipeline_stats'] = self.get_enhanced_pipeline_stats(self.current_run_id)
@@ -546,6 +551,73 @@ class NewsPipeline:
         
         return validation
     
+    def _reset_todays_articles(self):
+        """Reset today's matched articles for complete reprocessing."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        
+        TZ = ZoneInfo("Europe/Zurich")
+        today = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_iso = today.isoformat()
+        
+        conn = sqlite3.connect(self.db_path)
+        
+        # Get article IDs to reset
+        cursor = conn.execute("""
+            SELECT id FROM items
+            WHERE triage_topic = 'creditreform_insights'
+            AND is_match = 1
+            AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+        """, (today_iso, today_iso))
+        
+        article_ids = [row[0] for row in cursor.fetchall()]
+        
+        if not article_ids:
+            self.logger.info("No articles found to reset")
+            conn.close()
+            return
+        
+        # Delete summaries for these articles
+        placeholders = ','.join('?' * len(article_ids))
+        cursor = conn.execute(f"""
+            DELETE FROM summaries WHERE item_id IN ({placeholders})
+        """, article_ids)
+        summaries_deleted = cursor.rowcount
+        
+        # Delete scraped content for these articles
+        cursor = conn.execute(f"""
+            DELETE FROM articles WHERE item_id IN ({placeholders})
+        """, article_ids)
+        articles_deleted = cursor.rowcount
+        
+        # Delete cross-run topic signatures for these articles
+        cursor = conn.execute(f"""
+            DELETE FROM cross_run_topic_signatures WHERE source_article_id IN ({placeholders})
+        """, article_ids)
+        signatures_deleted = cursor.rowcount
+        
+        # Reset article state
+        cursor = conn.execute(f"""
+            UPDATE items 
+            SET selected_for_processing = 0,
+                selection_rank = NULL,
+                pipeline_run_id = NULL,
+                pipeline_stage = 'matched',
+                topic_already_covered = 0,
+                cross_run_cluster_id = NULL
+            WHERE id IN ({placeholders})
+        """, article_ids)
+        
+        reset_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        self.logger.info(f"RERUN MODE: Reset {reset_count} articles from today")
+        self.logger.info(f"  - Deleted {summaries_deleted} summaries")
+        self.logger.info(f"  - Deleted {articles_deleted} scraped content entries")
+        self.logger.info(f"  - Deleted {signatures_deleted} cross-run topic signatures")
+        self.logger.info("Articles will be re-selected, re-scraped, and re-summarized")
+    
     def show_stats(self) -> dict:
         """Show comprehensive pipeline statistics."""
         self.logger.info("=== Pipeline Statistics ===")
@@ -677,6 +749,12 @@ Examples:
         help="Maximum number of articles to process (default: 35)"
     )
     
+    parser.add_argument(
+        "--rerun-today",
+        action="store_true",
+        help="Reprocess all matched articles from today (useful for testing fixes)"
+    )
+    
     args = parser.parse_args()
     
     # Set up logging level
@@ -687,6 +765,11 @@ Examples:
     # Initialize pipeline with logging preference
     enable_file_logging = not args.no_file_logging
     pipeline = NewsPipeline(db_path=args.db_path, enable_file_logging=enable_file_logging)
+    
+    # Handle rerun-today flag
+    if args.rerun_today:
+        pipeline.logger.info("RERUN MODE: Resetting today's articles for reprocessing...")
+        pipeline._reset_todays_articles()
     
     # Export format handling
     export_format = "markdown" if args.format in ["markdown", "md"] else "json"
@@ -736,7 +819,7 @@ Examples:
                 max_articles=args.max_articles
             )
             print(f"\n[SUCCESS] Pipeline completed in {results.get('total_duration', 'unknown')}")
-            print(f"[EXPORT] Digest exported to: {results.get('step5_export_path', 'unknown')}")
+            print(f"[EXPORT] Digest exported to: {results.get('step6_export_path', 'unknown')}")
             
             # Show funnel summary
             if 'pipeline_stats' in results:

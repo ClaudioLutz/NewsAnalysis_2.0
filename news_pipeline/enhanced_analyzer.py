@@ -43,6 +43,10 @@ class EnhancedMetaAnalyzer:
         self.client = OpenAI()
         self.model = os.getenv("MODEL_MINI", "gpt-4o-mini")
         
+        # stash cross-run dedup results for export
+        self.last_dedup_results: Dict[str, Any] = {}
+        self.logger = logging.getLogger(__name__)
+        
         # Initialize incremental digest components
         self.incremental_generator = IncrementalDigestGenerator(db_path)
         self.state_manager = DigestStateManager(db_path)
@@ -118,17 +122,19 @@ class EnhancedMetaAnalyzer:
                 f"{dedup_results.get('duplicates_found', 0)} duplicates filtered, "
                 f"{dedup_results.get('unique_articles', 0)} unique articles proceeding"
             )
+            self.last_dedup_results = dedup_results or {}
             
         except Exception as e:
             self.logger.warning(
                 f"Cross-run deduplication failed (Step 3.1): {e}. "
                 f"Continuing with all articles."
             )
-            dedup_results = {'error': str(e)}
+            self.last_dedup_results = {'error': str(e)}
         
         results = {}
         api_calls_made = 0
         total_new_articles = 0
+        updated_topics = 0
         
         start_time = time.time()
         
@@ -138,10 +144,12 @@ class EnhancedMetaAnalyzer:
             # Generate incremental digest
             digest, was_updated = self.incremental_generator.generate_incremental_topic_digest(topic, date)
             results[topic] = digest
+            results[topic]['was_updated'] = bool(was_updated)
             
             if was_updated:
                 api_calls_made += 1  # Approximate - actual calls may vary
-                total_new_articles += digest.get('article_count', 0)
+                total_new_articles += digest.get('new_articles_count', 0) or 0
+                updated_topics += 1
                 self.logger.info(f"{topic}: Updated with {digest.get('article_count', 0)} articles")
             else:
                 self.logger.info(f"{topic}: No updates needed")
@@ -149,7 +157,7 @@ class EnhancedMetaAnalyzer:
         execution_time = time.time() - start_time
         
         # Log generation statistics
-        generation_type = "incremental" if any(r.get('last_updated') for r in results.values()) else "cached"
+        generation_type = "incremental" if updated_topics else "cached"
         total_articles = sum(d.get('article_count', 0) for d in results.values())
         
         self.state_manager.log_generation(
@@ -388,23 +396,33 @@ class EnhancedMetaAnalyzer:
         
         # Combine all data
         current_time = datetime.now().isoformat()
+        generation_type = "incremental" if any(d.get('was_updated') for d in digests.values()) else "cached"
+        
         export_data = {
             'date': date_str,
             'created_at': original_created_at or current_time,
             'generated_at': current_time,
             'executive_summary': executive,
             'trending_topics': trending,
-            'topic_digests': digests
+            'topic_digests': digests,
+            # KPI banner inputs & cross-run dedup surfacing
+            'generation_type': generation_type,
+            'stats': {
+                'topics': len(digests),
+                'total_articles': sum(d.get('article_count', 0) for d in digests.values()),
+                'new_articles': (self._get_latest_generation_log(date_str) or {}).get('new_articles'),
+                'api_calls_made': (self._get_latest_generation_log(date_str) or {}).get('api_calls_made'),
+                'execution_time_seconds': (self._get_latest_generation_log(date_str) or {}).get('execution_time_seconds'),
+            },
+            'cross_run_dedup_stats': self.last_dedup_results,
+            'source_yield': self._compute_source_yield(date_str),
         }
         
         # Add update metadata
         if original_created_at:
             export_data['updated'] = True
             export_data['last_updated'] = current_time
-            
-            # Count how many topics were actually updated
-            updated_topics = sum(1 for d in digests.values() 
-                               if d.get('last_updated') and d['last_updated'] == current_time)
+            updated_topics = sum(1 for d in digests.values() if d.get('was_updated'))
             export_data['topics_updated'] = updated_topics
         
         exported_files = []
@@ -425,7 +443,7 @@ class EnhancedMetaAnalyzer:
             if self.template_env:
                 try:
                     template = self.template_env.get_template('daily_digest.md.j2')
-                    markdown_content = template.render(data=export_data)
+                    markdown_content = template.render(data=export_data, max_sources=int(os.getenv("DAILY_MAX_SOURCES", "5")))
                     
                     with open(markdown_path, 'w', encoding='utf-8') as f:
                         f.write(markdown_content)
@@ -506,6 +524,64 @@ class EnhancedMetaAnalyzer:
                 f.write("---\n\n")
         
         self.logger.info(f"Created basic Markdown digest: {file_path}")
+    
+    def _get_latest_generation_log(self, date_str: str) -> Dict[str, Any]:
+        """Return latest row for this date from digest_generation_log."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT generation_type, topics_processed, total_articles,
+                       new_articles, api_calls_made, execution_time_seconds, created_at
+                FROM digest_generation_log
+                WHERE digest_date = ?
+                ORDER BY datetime(created_at) DESC
+                LIMIT 1
+            """, (date_str,))
+            row = cur.fetchone()
+            return dict(row) if row else {}
+        except Exception:
+            return {}
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _compute_source_yield(self, date_str: str) -> List[Dict[str, Any]]:
+        """Top host domains for the day with count/share (based on summaries/items)."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT i.url, COUNT(*) as n
+                FROM summaries s
+                JOIN items i ON s.item_id = i.id
+                WHERE DATE(s.created_at) = ?
+                GROUP BY i.url
+                ORDER BY n DESC
+            """, (date_str,))
+            rows = cur.fetchall()
+            from collections import Counter
+            from urllib.parse import urlparse
+            host_counts, total = Counter(), 0
+            for url, n in rows:
+                try:
+                    host = urlparse(url).netloc or 'unknown'
+                except Exception:
+                    host = 'unknown'
+                host_counts[host] += n
+                total += n
+            top = host_counts.most_common(5)
+            return [{'host': h, 'count': c, 'share_pct': round(100*c/total, 1) if total else 0.0} for h, c in top]
+        except Exception:
+            return []
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     def clear_old_digest_cache(self, days_to_keep: int = 7):
         """Clear old digest states and cache data."""

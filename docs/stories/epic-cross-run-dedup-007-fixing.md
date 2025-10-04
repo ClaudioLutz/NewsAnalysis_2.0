@@ -318,8 +318,40 @@ Overview text
 
 The fix successfully transformed the report from dense, paragraph-based summaries to scannable, bullet-point format. The key breakthrough was switching from Chat Completions API to Responses API, which reliably returns text output. Combined with an improved prompt emphasizing conciseness, the result is a much more readable and useful report format.
 
+## Final Verification
+
+**Pipeline Run:** 2025-10-03 17:27:52  
+**Status:** ✅ Successfully Completed  
+**Results:**
+- Pipeline completed in 0:16:01
+- Processed 71 articles → 10 matched → 10 selected → 10 scraped → 10 summarized
+- Generated report: `rating_reports/bonitaets_tagesanalyse_2025-10-03_01.md`
+
+**Report Quality Verification:**
+- ✅ Individual articles displayed with titles and links
+- ✅ Exactly 3 bullet points per article
+- ✅ Bullet points are concise (1-2 sentences each)
+- ✅ No "Key Points" section at topic level
+- ✅ German language handled correctly
+- ✅ All 8 articles formatted properly
+- ✅ Report is scannable and easy to read
+
+**Example Output:**
+```markdown
+**[Umfrage zum Wegzug: Eine klare Mehrheit wünscht, dass die UBS im Land bleibt](url)**
+- 61% of Swiss support tougher capital rules for UBS...
+- Political split: FDP fears the most damage...
+- UBS CEO Ermotti rejects the minister's plan...
+```
+
+**Technical Implementation:**
+- Using OpenAI Responses API with `gpt-5-mini` model
+- `_generate_article_key_points()` method working reliably
+- Template correctly displays individual articles with bullet points
+- Graceful fallback to full summary if key points generation fails
+
 ---
 
 **Created:** 2025-10-03  
-**Last Updated:** 2025-10-03  
-**Status:** ✅ Completed and Deployed
+**Last Updated:** 2025-10-03 22:55  
+**Status:** ✅ Completed, Verified, and Deployed

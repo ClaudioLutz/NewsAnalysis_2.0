@@ -1142,7 +1142,7 @@ Be selective - only mark articles that provide actionable business intelligence.
         # CRITICAL FIX: Select top articles from ALL of today, not just current run
         # This includes articles that were matched in previous runs but never selected
         cursor = conn.execute("""
-            SELECT i.id, i.triage_confidence, i.title, i.pipeline_run_id
+            SELECT i.id, i.triage_confidence, i.title, i.pipeline_run_id, i.source
             FROM items i
             LEFT JOIN summaries s ON i.id = s.item_id
             LEFT JOIN articles a ON i.id = a.item_id
@@ -1153,10 +1153,35 @@ Be selective - only mark articles that provide actionable business intelligence.
             AND s.item_id IS NULL  -- No existing summary
             AND (a.item_id IS NULL OR a.failure_count < 3)  -- Not repeatedly failed
             ORDER BY i.triage_confidence DESC, i.first_seen_at DESC
-            LIMIT ?
-        """, (threshold, today_iso, today_iso, max_articles))
+        """, (threshold, today_iso, today_iso))
         
-        selected_articles = cursor.fetchall()
+        all_candidates = cursor.fetchall()
+        
+        # NEW: Title-based deduplication - keep only first occurrence of each title
+        seen_titles = {}
+        selected_articles = []
+        
+        for article_id, confidence, title, old_run_id, source in all_candidates:
+            # Normalize title for comparison (lowercase, strip whitespace)
+            normalized_title = title.lower().strip() if title else ""
+            
+            if normalized_title in seen_titles:
+                # Duplicate found - log it
+                original_source = seen_titles[normalized_title]['source']
+                self.logger.info(f"Skipping duplicate title from {source} (already have from {original_source}): {title[:60]}...")
+                continue
+            
+            # Not a duplicate - add to selection
+            seen_titles[normalized_title] = {
+                'id': article_id,
+                'source': source,
+                'confidence': confidence
+            }
+            selected_articles.append((article_id, confidence, title, old_run_id))
+            
+            # Stop when we reach max_articles
+            if len(selected_articles) >= max_articles:
+                break
         
         # Mark selected articles with rank and assign to current run
         for rank, (article_id, confidence, title, old_run_id) in enumerate(selected_articles, 1):

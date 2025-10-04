@@ -160,6 +160,7 @@ class IncrementalDigestGenerator:
             LEFT JOIN article_clusters ac ON i.id = ac.article_id
             WHERE s.topic = ? 
             AND DATE(i.published_at) = ?
+            AND COALESCE(s.topic_already_covered, 0) = 0
             AND (ac.is_primary = 1 OR ac.article_id IS NULL)
             ORDER BY i.triage_confidence DESC, s.created_at DESC
         """, (topic, date))
@@ -343,6 +344,8 @@ class IncrementalDigestGenerator:
         if not new_articles:
             # No new articles, return existing digest
             if existing_digest:
+                # ensure key exists for downstream math
+                existing_digest.setdefault('new_articles_count', 0)
                 return existing_digest, False
             else:
                 # No existing digest and no new articles - return empty digest
@@ -354,6 +357,7 @@ class IncrementalDigestGenerator:
                     'bullets': [],
                     'sources': [],
                     'article_count': 0,
+                    'new_articles_count': 0,
                     'generated_at': datetime.now().isoformat()
                 }, False
         
@@ -364,13 +368,17 @@ class IncrementalDigestGenerator:
             return existing_digest or {}, False
         
         # Merge with existing or create new digest
+        was_updated = True
         if existing_digest:
             final_digest = self.merge_digests(existing_digest, partial_digest, topic)
+            # surface how many were new in THIS run for KPI accuracy
+            final_digest['new_articles_count'] = len(partial_digest.get('new_articles', [])) if 'new_articles' in partial_digest else len(new_articles)
         else:
             # No existing digest, convert partial to full digest
             from news_pipeline.analyzer import MetaAnalyzer
             analyzer = MetaAnalyzer(self.db_path)
             final_digest = analyzer.generate_topic_digest(topic, new_articles, "today")
+            final_digest['new_articles_count'] = len(new_articles)
         
         # Update processed article IDs
         all_processed_ids = list(processed_ids) + [a['id'] for a in new_articles]
@@ -378,4 +386,4 @@ class IncrementalDigestGenerator:
         # Save state
         self.state_manager.save_digest_state(date, topic, all_processed_ids, final_digest)
         
-        return final_digest, True
+        return final_digest, was_updated

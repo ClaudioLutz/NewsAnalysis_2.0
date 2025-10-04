@@ -57,6 +57,7 @@ class MetaAnalyzer:
                 WHERE s.topic = ? 
                 AND i.pipeline_run_id = ?
                 AND (i.published_at >= ? OR s.created_at >= ?)
+                AND COALESCE(s.topic_already_covered, 0) = 0
                 ORDER BY i.selection_rank, i.triage_confidence DESC
                 LIMIT ?
             """, (topic, run_id, cutoff_date, cutoff_date, limit))
@@ -70,6 +71,7 @@ class MetaAnalyzer:
                 LEFT JOIN article_clusters ac ON i.id = ac.article_id
                 WHERE s.topic = ? 
                 AND (i.published_at >= ? OR s.created_at >= ?)
+                AND COALESCE(s.topic_already_covered, 0) = 0
                 AND (ac.is_primary = 1 OR ac.article_id IS NULL)
                 ORDER BY i.triage_confidence DESC, s.created_at DESC
                 LIMIT ?

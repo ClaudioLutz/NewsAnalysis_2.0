@@ -5,6 +5,19 @@
 {% endif -%}
 **Generated:** {{ data.generated_at | datetime_format }}
 
+> **Type:** {{ data.generation_type|default("incremental") }} ·
+> **Topics:** {{ data.get('stats', {}).get('topics', '–') }} ·
+> **Articles:** {{ data.get('stats', {}).get('total_articles', '–') }} ·
+> **New (run):** {{ data.get('stats', {}).get('new_articles', 'n/a') }} ·
+> **API calls:** {{ data.get('stats', {}).get('api_calls_made', 'n/a') }} ·
+> **Cross-run filtered:** {{ data.get('cross_run_dedup_stats', {}).get('duplicates_found', data.get('cross_run_dedup_stats', {}).get('duplicates_filtered', 0)) }}
+
+{% if data.source_yield %}
+**Top sources today**
+{% for row in data.source_yield %}- {{ row.host }} — {{ row.count }} ({{ row.share_pct }}%)
+{% endfor %}
+{% endif %}
+
 ---
 
 ## Topic Analysis
@@ -17,6 +30,7 @@
 
 {{ digest.why_it_matters }}
 
+{# Prefer rich source metadata if present, else fall back to plain sources #}
 {% if digest.sources_meta %}
 
 {% for source in digest.sources_meta[:max_sources] -%}
@@ -33,6 +47,12 @@
 {% if digest.sources_meta | length > max_sources -%}
 *... and {{ digest.sources_meta | length - max_sources }} more sources*
 {% endif %}
+{% elif digest.sources %}
+
+**Sources referenced**
+{% for u in digest.sources[:max_sources] -%}
+- {{ u | domain_name }}
+{% endfor %}
 {% endif %}
 
 {% else -%}
@@ -48,6 +68,7 @@
 - **Total Articles:** {{ data.executive_summary.total_articles | default('N/A') }}
 - **Report Date:** {{ data.date }}
 - **Generation Time:** {{ data.generated_at | datetime_format }}
+{% if data.get('cross_run_dedup_stats') %}- **Cross-run Dedup:** {{ data.get('cross_run_dedup_stats', {}).get('duplicates_found', data.get('cross_run_dedup_stats', {}).get('duplicates_filtered', 0)) }} filtered{% endif %}
 {% if data.updated -%}
 - **Update Status:** Updated (originally created {{ data.created_at | datetime_format }})
 {% endif %}
