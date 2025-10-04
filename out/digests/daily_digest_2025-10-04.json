@@ -1,60 +1,119 @@
 {
   "date": "2025-10-04",
   "created_at": "2025-10-04T20:00:59.460313",
-  "generated_at": "2025-10-04T20:37:13.196846",
+  "generated_at": "2025-10-04T22:03:14.332692",
   "executive_summary": {
-    "headline": "Kapital knapper, Rechtsrisiken fokussieren sich, Banken erhöhen Margen – Finanzierung verteuert sich, Energie- und Auto-Umbruch beschleunigen",
-    "executive_summary": "UBS’ indirektes Exposure von rund 516 Mio. USD an den insolventen US-Zulieferer First Brands rückt Governance bei Fonds- und Lieferkettenfinanzierungen in den Mittelpunkt und erhöht den Druck auf Kapital- und Risikodiskussionen. Die Abweisung der AT1-Sammelklage in New York reduziert extraterritoriale Rechtsrisiken und stabilisiert tendenziell die Marktstimmung, während die entscheidenden Urteile in der Schweiz noch ausstehen. Schweizer Banken weiten angesichts teurerer Refinanzierung ihre Hypothekenmargen aus, was Erträge stützt, aber die Erschwinglichkeit drückt und die Transaktionsdynamik im Immobilienmarkt dämpfen kann. Parallel eröffnen beschleunigte Energieprojekte Chancen, treffen jedoch auf Lieferketten- und Genehmigungsrisiken; der Strategiewechsel der Autoindustrie erzwingt duale Produktwelten und regional robustere Lieferketten bei Schweizer Zulieferern.",
+    "headline": "Teurere Finanzierung, selektivere Kreditvergabe und höhere Rechtsrisiken: Schweizer Unternehmen müssen Kapital-, Kredit- und Compliance-Strategien neu ausrichten",
+    "executive_summary": "Zunehmend höhere Refinanzierungskosten (insbesondere über SARON-Margen) und der Mangel an günstigen Kundeneinlagen treiben Hypothekar- und Kreditkonditionen nach oben, dämpfen Immobiliennachfrage und belasten den Konsum. Parallel erhöhen anhaltende Rechts- und Politikrisiken (u. a. AT1-Verfahren, Abwicklungsfragen, Migrationspolitik) die Planungsunsicherheit für Banken und Unternehmen. Fälle wie die UBS-Exponierung gegenüber First Brands (rund 516 Mio. USD) zeigen Konzentrations- und Sicherheitenrisiken in Private-Debt- und Supply-Chain-Finanzierungen auf und machen strengere Transparenz- und Governance-Anforderungen wahrscheinlich. Wer jetzt Kapitalstruktur, Kreditportfolios und regulatorische Szenarien prüft, sichert sich einen Wettbewerbsvorteil in einem volatileren Umfeld.",
     "key_themes": [
-      "Repricing von Risiko und Kapital: Knapperes, teureres Funding führt zu höheren Hypothekenmargen und selektiverer Kreditvergabe.",
-      "Rechts- und Regulierungsfokus verlagert sich in die Schweiz: AT1-Unsicherheit sinkt ex-territorial, bleibt aber bis zu Schweizer Urteilen bestehen.",
-      "Governance- und Gegenparteirisiken im Rampenlicht: UBS-Exposure über Fondsvehikel zeigt Schwächen unbesicherter Lieferkettenfinanzierungen.",
-      "Beschleunigter Energieausbau trifft auf Kapazitäts-, Lieferketten- und Genehmigungsengpässe.",
-      "Industriewandel im Automobilsektor erfordert duale Produktstrategien und regionalisierte, resiliente Lieferketten."
+      "Strukturell teurere Refinanzierung und breitere Margen (v. a. SARON) erhöhen Finanzierungskosten für Hypotheken und Unternehmen.",
+      "Selektivere Kreditvergabe reduziert Nachfrage und erhöht Selektionsdruck auf Immobilien- und Konsummärkte.",
+      "Erhöhte Rechts- und Politikrisiken (AT1-Streit, Abwicklungsregeln, Migrationspolitik) schaffen anhaltende Unsicherheit für Banken und Investoren.",
+      "Konzentrations- und Sicherheitenrisiken in Private Debt / Supply-Chain-Finanzierungen zwingen zu mehr Transparenz, Risikoaufteilung und Governance."
     ],
     "top_priorities": [
-      "Refinanzierung und Liquidität proaktiv sichern: Laufzeiten staffeln, alternative Finanzierungsquellen diversifizieren, Zins-/Credit-Hedges prüfen und höhere Spreads in Business Cases verankern.",
-      "Exponierungen und Governance schärfen: Trade-/Supply-Chain-Finance, Fondsvehikel und unbesicherte Strukturen inventarisieren; Gegenparteikonzentrationen abbauen und Rechts-/Reputationsrisiken (inkl. AT1-Narrativ) eng monitoren.",
-      "Energie- und Industriewende nutzen und absichern: Projektpipeline priorisieren, Genehmigungs-Readiness und EPC-Kapazitäten aufbauen, kritische Komponenten mehrgleisig sourcen; Zulieferer auf Dual-Produktwelten und regionale Lieferketten ausrichten."
+      "Überprüfen und diversifizieren Sie Funding- und Kapitalstruktur: Liquidity-Stresstests, Einlagenstrategien, alternative Refinanzierungsquellen und aktive Zins- bzw. Margin-Hedging-Maßnahmen implementieren.",
+      "Sofortige Durchsicht von Kredit- und Investitionsportfolios: Mortgages, CRE, Private Debt und Supply-Chain-Exponierungen auf Konzentrationen, Sicherheitenqualität und Ausfallwahrscheinlichkeiten scannen; Kreditrichtlinien straffen und Rückversicherung/Partizipation prüfen.",
+      "Regulatorische Szenarien und Stakeholder-Engagement verstärken: AT1- und Abwicklungs-Fallouts durchspielen, Reporting/Transparenz erhöhen und proaktiv den Dialog mit Regulatoren, Investoren und Pensionskassen suchen."
     ],
-    "total_articles": 5,
-    "total_topics": 1,
-    "generated_at": "2025-10-04T20:37:13.189925"
+    "total_articles": 6,
+    "total_topics": 3,
+    "generated_at": "2025-10-04T22:03:14.328444"
   },
   "trending_topics": [
     {
       "topic": "creditreform_insights",
-      "article_count": 33,
-      "avg_confidence": 0.772,
+      "article_count": 34,
+      "avg_confidence": 0.762,
       "source_diversity": 5,
-      "trend_score": 25.47
+      "active_days": 3,
+      "trend_score": 37.9
     }
   ],
   "topic_digests": {
+    "bonitaet_b2b_ch": {
+      "topic": "bonitaet_b2b_ch",
+      "date_range": "today",
+      "headline": "No bonitaet_b2b_ch news found",
+      "why_it_matters": "No significant developments to report.",
+      "bullets": [],
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-04T22:01:46.270818",
+      "was_updated": false
+    },
+    "schweizer_wirtschaft": {
+      "topic": "schweizer_wirtschaft",
+      "date_range": "today",
+      "headline": "No schweizer_wirtschaft news found",
+      "why_it_matters": "No significant developments to report.",
+      "bullets": [],
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-04T22:01:46.278003",
+      "was_updated": false
+    },
     "creditreform_insights": {
-      "headline": "Kapital knapper, Regeln schärfer, Projekte schneller: UBS-Risiken, AT1-Urteil, höhere Hypomargen und beschleunigter Energieausbau im Fokus",
-      "why_it_matters": "Bankseitige Risikoereignisse, juristische Weichenstellungen und neue Regulierungen verschieben die Risiko- und Renditeprofile im Schweizer Markt. Firmen müssen Refinanzierung und Liquiditätssicherung neu kalibrieren, während Investoren beschleunigte Chancen im Energieausbau gegen Lieferketten- und Genehmigungsrisiken abwägen. Parallel zwingt die strategische Kurskorrektur der Autoindustrie Schweizer Zulieferer zu dualen Produktwelten und regional robusten Lieferketten.",
+      "headline": "Teureres Geld, Preisoffensiven und wachsende Rechts- sowie Politikrisiken: Die neue Agenda für Schweizer Unternehmen",
+      "why_it_matters": "Die Finanzierung wird teurer und selektiver, während der Konsum über aggressive Preisstrategien umkämpft ist. Parallel erhöhen Rechts- und Regulierungsthemen – von AT1-Verfahren bis Migrationspolitik – die Planungsunsicherheit. Wer jetzt seine Kapitalstruktur, Lieferketten und Marktposition aktiv absichert, verschafft sich robuste Wettbewerbsvorteile.",
       "bullets": [
-        "UBS-Exposure an insolventem US-Zulieferer First Brands (rund 516 Mio. USD über Fondsvehikel) erhöht den Druck auf Risiko-Governance und Kapitaldiskussionen; unbesicherte Lieferkettenfinanzierungen bergen Verlustpotenzial für Fondsinvestoren und reputative Kosten.",
-        "AT1-Sammelklage in New York abgewiesen: Der Rechtsfokus verlagert sich zurück in die Schweiz. Das reduziert extraterritoräre Risiken und stabilisiert tendenziell die AT1-Marktstimmung, lässt aber Unsicherheiten bis zu Schweizer Urteilen bestehen.",
-        "Schweizer Banken weiten Hypothekenmargen aus (Saron-Aufschläge typ. +10–40 bp) wegen knapperer, teurerer Refinanzierung. Ergebnis: Ertragsstütze für Banken, aber schwächere Erschwinglichkeit und potenziell geringere Transaktionsdynamik im Immobilienmarkt.",
-        "Beschleunigungserlass ohne Referendum: 16 grosse EE-Projekte erhalten verkürzte Verfahren und geringeres Rechtsrisiko. Das erleichtert Kapitalbindung, schafft Pipeline-Sichtbarkeit für Bau-, Ausrüstungs- und Netzakteure – mit verbleibenden Kapazitäts- und Akzeptanzhürden.",
-        "Automobilindustrie auf Doppelgleis: Mercedes setzt bis in die 2030er auf elektrifizierte Verbrenner und fordert flexiblere Regulierung. Für Schweizer Zulieferer und Maschinenbauer heisst das: duale Produkt-Roadmaps (ICE/EV), Re-Regionalisierung der Wertschöpfung und erhöhte Handelssensitivität.",
-        "Gemeinsamer Nenner: Kapital wird selektiver und Regulierung wirkungsmächtiger. Strategische Prioritäten verlagern sich zu resilienter Finanzierung, beschleunigter Energieinfrastruktur und flexiblen, geopolitikfesten Lieferketten."
+        "Hypotheken werden strukturell teurer: Banken weiten Margen (v. a. bei SARON) aus, da günstige Kundeneinlagen fehlen. Das erhöht Wohn- und Finanzierungskosten, belastet Immobiliennachfrage und drückt Konsum – Kreditvergaben werden selektiver.",
+        "Rechtsrisiken im Schweizer Bankenumfeld bleiben: Die Abweisung der US-AT1-Klage stützt zwar die Staatenimmunität, beschleunigt aber die hängigen Schweizer Verfahren nicht. Unsicherheit über künftige Abwicklungsregeln kann AT1-Spreads treiben und die Refinanzierungskosten hiesiger Banken erhöhen.",
+        "Private-Debt-/Supply-Chain-Finanzierung unter der Lupe: UBS-Exponierung von rund 516 Mio. USD im Fall First Brands zeigt Konzentrations- und Sicherheitenrisiken. Erwartbare regulatorische und investorenseitige Transparenzforderungen treffen Schweizer Asset-Manager, Pensionskassen und Kreditfonds gleichermaßen.",
+        "Detailhandel im Preiskrieg: Migros’ Tiefpreis-Offensive und forcierten Zentralisierungen erhöhen den Druck auf Margen und Logistikkosten im Markt. Für Lieferanten bedeuten Sortimentstraffungen und Bündelungen härtere Listungsbedingungen – Effizienz, Skalierung und Co-Packing-Kompetenz werden entscheidend.",
+        "Autoindustrie fährt zweigleisig: Mercedes verlängert die Lebensdauer effizienter Verbrenner (inkl. PHEV) und investiert parallel in E‑Mobilität. Schweizer Zulieferer mit Dual-Kompetenz (ICE/EV), lokalisierbaren Lieferketten und Compliance-Fitness für re-regionalisierte Märkte sichern sich Aufträge – reiner EV‑Fokus bleibt risikobehaftet.",
+        "Politik als Standortfaktor: Eine strikte 10‑Millionen-Obergrenze würde Fachkräftezugang, Ansiedlungen und Wachstum dämpfen. Firmen sollten Szenarien für restriktivere Migration, höhere Wohnkosten und Infrastrukturengpässe planen – und gleichzeitig aktiv in Produktivität, Automatisierung und Talentbindung investieren."
       ],
       "sources": [
-        "https://www.srf.ch/news/wirtschaft/insolvenz-von-first-brands-das-gibt-aerger-faule-kredite-der-ubs-von-halber-milliarde-dollar",
-        "https://www.nzz.ch/finanzen/at1-glaeubiger-der-credit-suisse-erleiden-in-den-usa-eine-herbe-niederlage-was-das-fuer-die-verfahren-in-der-schweiz-bedeutet-ld.1905442",
-        "https://www.derbund.ch/mercedes-haelt-an-verbrennern-fest-357951984927",
         "https://www.derbund.ch/hypothekarzinsen-banken-erhoehen-zinsmarge-bei-hypotheken-367185815507",
-        "https://www.srf.ch/news/schweiz/erneuerbare-energien-umweltallianz-verzichtet-auf-referendum-zum-beschleunigungserlass"
+        "https://www.derbund.ch/mercedes-haelt-an-verbrennern-fest-357951984927",
+        "https://www.nzz.ch/finanzen/at1-glaeubiger-der-credit-suisse-erleiden-in-den-usa-eine-herbe-niederlage-was-das-fuer-die-verfahren-in-der-schweiz-bedeutet-ld.1905442",
+        "https://www.srf.ch/news/wirtschaft/insolvenz-von-first-brands-das-gibt-aerger-faule-kredite-der-ubs-von-halber-milliarde-dollar",
+        "https://www.nzz.ch/wirtschaft/m-fuer-masterplan-wie-die-migros-genossenschaften-mit-der-tiefpreisstrategie-diszipliniert-werden-sollen-ld.1905077",
+        "https://www.nzz.ch/wirtschaft/die-expat-freunde-der-volkspartei-svp-regierungsraete-kritisieren-die-10-millionen-initiative-der-eigenen-partei-ld.1903839"
       ],
       "topic": "creditreform_insights",
       "date_range": "today",
-      "article_count": 5,
-      "generated_at": "2025-10-04T20:36:41.736245"
+      "article_count": 6,
+      "generated_at": "2025-10-04T22:02:58.469422",
+      "new_articles_count": 6,
+      "was_updated": true
     }
   },
+  "generation_type": "incremental",
+  "stats": {
+    "topics": 3,
+    "total_articles": 6,
+    "new_articles": 6,
+    "api_calls_made": 1,
+    "execution_time_seconds": 72.22334098815918
+  },
+  "cross_run_dedup_stats": {
+    "articles_processed": 6,
+    "duplicates_found": 0,
+    "unique_articles": 6,
+    "first_run": true
+  },
+  "source_yield": [
+    {
+      "host": "www.nzz.ch",
+      "count": 3,
+      "share_pct": 50.0
+    },
+    {
+      "host": "www.derbund.ch",
+      "count": 2,
+      "share_pct": 33.3
+    },
+    {
+      "host": "www.srf.ch",
+      "count": 1,
+      "share_pct": 16.7
+    }
+  ],
   "updated": true,
-  "last_updated": "2025-10-04T20:37:13.196846"
+  "last_updated": "2025-10-04T22:03:14.332692",
+  "topics_updated": 1
 }

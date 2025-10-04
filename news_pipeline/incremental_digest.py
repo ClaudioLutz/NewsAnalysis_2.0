@@ -220,7 +220,7 @@ class IncrementalDigestGenerator:
                     "new_sources": {"type": "array", "items": {"type": "string"}},
                     "entities_mentioned": {"type": "array", "items": {"type": "string"}}
                 },
-                "required": ["key_insights", "important_developments", "new_sources"],
+                "required": ["key_insights", "important_developments", "new_sources", "entities_mentioned"],
                 "additionalProperties": False
             }
             
