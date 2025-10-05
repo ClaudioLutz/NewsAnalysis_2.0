@@ -41,33 +41,6 @@ class LanguageConfig:
         """Check if current language is English."""
         return self.language == 'en'
     
-    def get_executive_summary_prompt(self) -> str:
-        """Get executive summary generation prompt in configured language."""
-        if self.language == 'de':
-            return """Sie sind ein Analyst für Führungskräfte und erstellen Zusammenfassungen für die Geschäftsleitung.
-
-Erstellen Sie eine Zusammenfassung aus mehreren Themen-Digests zu Schweizer Wirtschaftsnachrichten.
-
-Liefern Sie:
-- headline: Eine überzeugende Schlagzeile für den Tag/Zeitraum
-- executive_summary: 3-4 Sätze mit den wichtigsten Erkenntnissen
-- key_themes: 3-5 Hauptthemen/Muster aus allen Themen
-- top_priorities: 2-3 Punkte, die Führungsaufmerksamkeit erfordern
-
-Fokussieren Sie auf strategische Implikationen, themenübergreifende Muster und umsetzbare Erkenntnisse."""
-        else:
-            return """You are a C-level executive briefing analyst.
-
-Create an executive summary from multiple topic digests covering Swiss business news.
-
-Provide:
-- headline: Single compelling headline for the day/period
-- executive_summary: 3-4 sentences with the most critical insights
-- key_themes: 3-5 major themes/patterns across all topics
-- top_priorities: 2-3 items requiring executive attention
-
-Focus on strategic implications, cross-topic patterns, and actionable insights."""
-    
     def get_partial_digest_prompt(self, topic: str) -> str:
         """Get partial digest generation prompt for new articles."""
         if self.language == 'de':
@@ -105,7 +78,6 @@ Führen Sie das bestehende {topic}-Digest mit neuen Erkenntnissen zusammen, um e
 Nehmen Sie das bestehende Digest und neue Erkenntnisse und erstellen Sie:
 - headline: Aktualisierte überzeugende Schlagzeile mit allen Informationen
 - why_it_matters: Aktualisierte Bedeutungserklärung
-- bullets: Zusammengeführte und deduplizierte Schlüsselpunkte (max. 6)
 - sources: Kombinierte Quellen-URLs (dedupliziert)
 
 Priorisieren Sie die wichtigsten und neuesten Erkenntnisse unter Beibehaltung des Kontexts."""
@@ -117,7 +89,6 @@ Merge existing {topic} digest with new insights to create comprehensive updated 
 Take the existing digest and new insights, then create:
 - headline: Updated compelling headline reflecting all information
 - why_it_matters: Updated significance explanation
-- bullets: Merged and deduplicated key points (max 6)
 - sources: Combined source URLs (deduplicated)
 
 Prioritize the most important and recent insights while maintaining context."""
@@ -151,7 +122,6 @@ Analysieren Sie die bereitgestellten {topic}-Artikel und erstellen Sie ein umfas
 Erstellen Sie:
 - headline: Überzeugende Hauptschlagzeile für diese Sammlung von Artikeln
 - why_it_matters: Warum diese Entwicklungen für Schweizer Unternehmen und Stakeholder wichtig sind
-- bullets: 4-6 wichtige Erkenntnisse und Entwicklungen
 - sources: Liste der analysierten Artikel-URLs
 
 Fokussieren Sie auf Geschäftsimplikationen, Marktauswirkungen und strategische Erkenntnisse."""
@@ -163,7 +133,6 @@ Analyze the provided {topic} articles and create a comprehensive digest.
 Create:
 - headline: Compelling main headline for this collection of articles
 - why_it_matters: Why these developments matter for Swiss businesses and stakeholders
-- bullets: 4-6 key insights and developments
 - sources: List of analyzed article URLs
 
 Focus on business implications, market impact, and strategic insights."""

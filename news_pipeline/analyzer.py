@@ -148,10 +148,9 @@ class MetaAnalyzer:
                 "properties": {
                     "headline": {"type": "string"},
                     "why_it_matters": {"type": "string"},
-                    "bullets": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
                     "sources": {"type": "array", "items": {"type": "string"}}
                 },
-                "required": ["headline", "why_it_matters", "bullets", "sources"],
+                "required": ["headline", "why_it_matters", "sources"],
                 "additionalProperties": False
             }
             
@@ -354,94 +353,6 @@ class MetaAnalyzer:
         
         return trending[:10]  # Top 10 trending topics
     
-    def create_executive_summary(self, digests: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Create an executive summary across all topic digests.
-        
-        Args:
-            digests: Dictionary of topic digests
-            
-        Returns:
-            Executive summary with top insights
-        """
-        try:
-            if not digests:
-                return {
-                    'headline': 'No recent news activity',
-                    'executive_summary': 'No significant developments to report.',
-                    'key_themes': [],
-                    'total_articles': 0
-                }
-            
-            system_prompt = self.lang_config.get_executive_summary_prompt()
-            
-            # Prepare input
-            input_data = {
-                'total_topics': len(digests),
-                'total_articles': sum(d.get('article_count', 0) for d in digests.values()),
-                'digests': {}
-            }
-            
-            for topic, digest in digests.items():
-                input_data['digests'][topic] = {
-                    'headline': digest.get('headline', ''),
-                    'why_it_matters': digest.get('why_it_matters', ''),
-                    'bullets': digest.get('bullets', [])[:3],  # Top 3 bullets
-                    'article_count': digest.get('article_count', 0)
-                }
-            
-            response_schema = {
-                "type": "object",
-                "properties": {
-                    "headline": {"type": "string"},
-                    "executive_summary": {"type": "string"},
-                    "key_themes": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
-                    "top_priorities": {"type": "array", "items": {"type": "string"}, "maxItems": 3}
-                },
-                "required": ["headline", "executive_summary", "key_themes", "top_priorities"],
-                "additionalProperties": False
-            }
-            
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": json.dumps(input_data)}
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "executive_summary",
-                        "schema": response_schema,
-                        "strict": True
-                    }
-                }
-            )
-            
-            response_content = response.choices[0].message.content
-            if response_content is None:
-                raise ValueError("OpenAI response content is None")
-            
-            result = json.loads(response_content)
-            result.update({
-                'total_articles': input_data['total_articles'],
-                'total_topics': input_data['total_topics'],
-                'generated_at': datetime.now().isoformat()
-            })
-            
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error creating executive summary: {e}")
-            return {
-                'headline': 'Executive summary generation failed',
-                'executive_summary': f'Technical error: {str(e)[:100]}',
-                'key_themes': [],
-                'top_priorities': [],
-                'total_articles': sum(d.get('article_count', 0) for d in digests.values()),
-                'error': str(e)[:200]
-            }
-    
     def export_daily_digest(self, output_file_path: str | None = None, format: str = "json", run_id: str | None = None) -> str:
         """
         Export daily digest to JSON file. Always generates German rating agency report automatically.
@@ -522,11 +433,11 @@ class MetaAnalyzer:
                 self.logger.warning(f"Could not read existing digest file: {e}, creating new one")
                 original_created_at = None
         
-        # Create executive summary
-        executive = self.create_executive_summary(digests)
-        
         # Get trending topics
         trending = self.identify_trending_topics(days=7)
+        
+        # Calculate total articles across all digests
+        total_articles = sum(d.get('article_count', 0) for d in digests.values())
         
         # Combine all data with proper timestamps
         current_time = datetime.now().isoformat()
@@ -534,7 +445,7 @@ class MetaAnalyzer:
             'date': datetime.now().strftime('%Y-%m-%d'),
             'created_at': original_created_at or current_time,  # Preserve original creation time
             'generated_at': current_time,  # Always update this to current time
-            'executive_summary': executive,
+            'total_articles': total_articles,  # Total count for metadata
             'trending_topics': trending,
             'topic_digests': digests
         }

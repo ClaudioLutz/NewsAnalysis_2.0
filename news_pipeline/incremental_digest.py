@@ -274,10 +274,9 @@ class IncrementalDigestGenerator:
                 "properties": {
                     "headline": {"type": "string"},
                     "why_it_matters": {"type": "string"},
-                    "bullets": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
                     "sources": {"type": "array", "items": {"type": "string"}}
                 },
-                "required": ["headline", "why_it_matters", "bullets", "sources"],
+                "required": ["headline", "why_it_matters", "sources"],
                 "additionalProperties": False
             }
             
