@@ -256,8 +256,20 @@ class IncrementalDigestGenerator:
     
     def merge_digests(self, existing_digest: Dict[str, Any], 
                      partial_digest: Dict[str, Any], topic: str) -> Dict[str, Any]:
-        """Merge new partial digest with existing digest."""
+        """
+        Merge new partial digest with existing digest.
+        
+        Note: Handles backward compatibility with old format that may include
+        'bullets' and 'executive_summary' fields. These fields are silently
+        dropped in the merged output.
+        """
         try:
+            # Check for old format and log warning
+            if 'bullets' in existing_digest:
+                self.logger.warning(f"Old format detected in existing digest for {topic}: contains 'bullets' field (will be dropped)")
+            if 'executive_summary' in existing_digest:
+                self.logger.warning(f"Old format detected in existing digest for {topic}: contains 'executive_summary' field (will be dropped)")
+            
             # Use language configuration for prompt
             language_config = get_language_config()
             system_prompt = language_config.get_merge_digests_prompt(topic)
@@ -353,7 +365,6 @@ class IncrementalDigestGenerator:
                     'date_range': 'today',
                     'headline': f'No {topic} news found',
                     'why_it_matters': 'No significant developments to report.',
-                    'bullets': [],
                     'sources': [],
                     'article_count': 0,
                     'new_articles_count': 0,
