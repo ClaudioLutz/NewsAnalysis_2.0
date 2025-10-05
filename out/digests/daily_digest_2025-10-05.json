@@ -1,0 +1,109 @@
+{
+  "date": "2025-10-05",
+  "created_at": "2025-10-05T10:42:43.298417",
+  "generated_at": "2025-10-05T10:42:43.298417",
+  "executive_summary": {
+    "headline": "Logistik und Politik zwingen Anpassungen — Chancen für Infrastruktur- und Sicherheitsanbieter",
+    "executive_summary": "Für 2025 verschieben sich die Risikoparameter: eingeschränkte Transportkapazitäten (Luftfahrt-Personalknappheit, Swiss-Kostensenkungen) und Bahnbau-Verzögerungen belasten Lieferketten und Pünktlichkeit. Gleichzeitig erhöht die verfassungsrechtliche Neubewertung Deutschlands die regulatorische und marktseitige Volatilität, bringt aber Nachfrageimpulse für Sicherheits- und Rüstungsaufträge. Unternehmen müssen kurzfristig operative Maßnahmen zur Resilienz ergreifen und mittelfristig Chancen im Ausbau von Infrastruktur- und Sicherheitsleistungen nutzen. Vertrags-, Export- und Business-Continuity-Modelle sind jetzt auf Eskalationsszenarien und Mobilisierungsregeln zu prüfen und anzupassen.",
+    "key_themes": [
+      "Transportresilienz unter Druck: Luftfahrt-Personalmangel und Sparprogramme erhöhen Ausfall- und Verspätungsrisiken; Schienenengpässe verschieben Güter- und Pendlerströme.",
+      "Regulatorische & geopolitische Unsicherheit: Rechtsrahmen in Deutschland schafft Eskalationsrisiken für Lieferketten, aber auch Nachfrage für Sicherheitsausgaben.",
+      "Infrastrukturoffensive als Chance: Verzögerte Modernisierungen und Priorisierungen eröffnen mittelfristige Aufträge für Bau, Elektro-/Signaltechnik und Planung.",
+      "Vertragliche und operationelle Absicherung: Bedarf an diversifizierter Logistikstrategie, robusten SLAs, Exportkontroll-Compliance und Szenarioplanung für Notstands-/Mobilisierungsfälle."
+    ],
+    "top_priorities": [
+      "Überprüfen und anpassen der Logistik- und Reisestategie: Diversifizieren von Fracht- und Reiseträgern (inkl. Alternativen zur Belly-Fracht), SLAs mit Pufferzeiten, Anbieterbewertung nach Fatigue- und Risikomanagement.",
+      "Sofortige Rechts- und Compliance-Prüfung für Deutschland-Exposure: Exportkontrollen, Force‑Majeure- und Leistungsstörungs-Klauseln aktualisieren; Business-Continuity-Pläne um Mobilisierungs-/Notstands-Szenarien erweitern.",
+      "Gezielte Marktbearbeitung in Infrastruktur & Sicherheit: Ressourcen für Ausschreibungen priorisieren, Partnerschaften mit Baufirmen und Systemintegratoren eingehen und Angebotsfähigkeit für Elektro/Signal- und Sicherheitsprojekte erhöhen."
+    ],
+    "total_articles": 4,
+    "total_topics": 3,
+    "generated_at": "2025-10-05T10:42:43.292979"
+  },
+  "trending_topics": [
+    {
+      "topic": "creditreform_insights",
+      "article_count": 42,
+      "avg_confidence": 0.767,
+      "source_diversity": 5,
+      "active_days": 4,
+      "trend_score": 41.39
+    }
+  ],
+  "topic_digests": {
+    "bonitaet_b2b_ch": {
+      "topic": "bonitaet_b2b_ch",
+      "date_range": "today",
+      "headline": "No bonitaet_b2b_ch news found",
+      "why_it_matters": "No significant developments to report.",
+      "bullets": [],
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-05T10:41:20.600330",
+      "was_updated": false
+    },
+    "schweizer_wirtschaft": {
+      "topic": "schweizer_wirtschaft",
+      "date_range": "today",
+      "headline": "No schweizer_wirtschaft news found",
+      "why_it_matters": "No significant developments to report.",
+      "bullets": [],
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-05T10:41:20.605174",
+      "was_updated": false
+    },
+    "creditreform_insights": {
+      "headline": "Logistik unter Druck, Politik im Umbruch: Was Schweizer Firmen jetzt in Luftfahrt, Bahn und Mitteleuropa einkalkulieren müssen",
+      "why_it_matters": "Für Schweizer Unternehmen verschieben sich 2025 die Risikoparameter in drei Kernbereichen: Transportkapazitäten und -zuverlässigkeit, regulatorisch-politische Planbarkeit in Nachbar- und Zuliefermärkten sowie Chancen im Infrastruktur- und Sicherheitssektor. Wer Beschaffung, Reisen, Vertrieb und Investitionen frühzeitig anpasst, sichert Service-Level, Kostenposition und Resilienz in einem volatilen Umfeld.",
+      "bullets": [
+        "Luftfahrt: EU-Auftragsstudie signalisiert wachsende Erschöpfung beim Flugpersonal; parallel spart Swiss 160 Mio. CHF. In Restrukturierungsphasen steigt das operative Risiko (Pünktlichkeit, Ausfälle), während Versicherer und Aufsicht genau hinsehen. Unternehmen sollten Reise- und Belly-Fracht-Strategien diversifizieren, SLAs mit Pufferzeiten versehen und Träger mit robustem Fatigue-Management bevorzugen.",
+        "Schienenverkehr Westschweiz: Der Engpass Genf–Lausanne und die auf 2038 verschobene Modernisierung des Bahnhofs Lausanne belasten Pendler- und Güterströme entlang der Ost–West-Achse. Politisch zeichnet sich Priorisierung ab, was mittelfristig Auftragschancen für Bau, Elektro/Signaltechnik und Planer eröffnet – kurzfristig sind jedoch längere Transitzeiten und Kapazitätslimits in Supply Chains einzuplanen.",
+        "Deutschland: Der verfassungsrechtliche Rahmen für Spannungs- und Verteidigungsfall schafft im Eskalationsszenario erhebliche Markt- und Lieferkettenvolatilität – bei gleichzeitig möglichen Impulsen für Sicherheits- und Rüstungsaufträge. Schweizer Anbieter mit Deutschland-Exposure sollten Exportkontrollen und Vertragsklauseln (Force Majeure, Leistungsstörungen) prüfen sowie Szenarien für Mobilisierung/Notstandsrechte in Business-Continuity-Plänen abbilden.",
+        "Tschechien: ANO-Sieg von Andrej Babiš und Aussicht auf eine tolerierte Minderheitsregierung erhöhen die Politikunsicherheit. Ein mögliches Ende tschechischer Waffenlieferungen würde europäische Munitionsketten treffen; innenpolitische Versprechen (niedrigere Steuern/energie) stehen fiskalisch auf dem Prüfstand. Für Schweizer Produktions- und Zuliefernetzwerke in CZ bedeutet das: regulatorische Volatilität, FX-Risiko (CZK) und potenzielle Neujustierung von EU-Politiklinien einkalkulieren.",
+        "Kosten- und Kapazitätseffekt für Unternehmen: Kombinierte Engpässe in Luft- und Bahnlogistik können 2025 Transportkosten und Durchlaufzeiten erhöhen. Budgetierung, Preisklauseln und Sicherheitsbestände anpassen; alternative Routen/Hubs (z.B. stärkere Nutzung Basel/Bern, Road-Feeder) vorhalten.",
+        "Strategischer Takeaway: Parallel zu Risiken entstehen Chancen in Infrastruktur, Mobilitätstechnologie, Sicherheit und Dual-Use-Industrien. Pipeline-Management für öffentliche Ausschreibungen, Partnerschaften mit Systemhäusern und Compliance-by-Design erhöhen die Trefferquote bei neuen Investitions- und Beschaffungswellen."
+      ],
+      "sources": [
+        "https://www.srf.ch/news/wirtschaft/flugpersonal-unter-druck-airlines-sparen-wie-sicher-ist-das-fliegen-da-noch",
+        "https://www.srf.ch/news/schweiz/bahnausbau-auf-ost-west-achse-das-bahntrauma-der-romandie-soll-ein-ende-haben",
+        "https://www.nzz.ch/international/der-angriff-kommt-wie-deutschland-den-spannungs-und-verteidigungsfall-ausruft-ld.1905271",
+        "https://www.srf.ch/news/international/tschechische-parlamentswahl-rechtspopulist-babis-gewinnt-mit-seiner-partei-in-tschechien-1"
+      ],
+      "topic": "creditreform_insights",
+      "date_range": "today",
+      "article_count": 4,
+      "generated_at": "2025-10-05T10:42:29.164788",
+      "new_articles_count": 4,
+      "was_updated": true
+    }
+  },
+  "generation_type": "incremental",
+  "stats": {
+    "topics": 3,
+    "total_articles": 4,
+    "new_articles": 4,
+    "api_calls_made": 1,
+    "execution_time_seconds": 68.58642578125
+  },
+  "cross_run_dedup_stats": {
+    "articles_processed": 4,
+    "duplicates_found": 0,
+    "unique_articles": 4,
+    "first_run": true
+  },
+  "source_yield": [
+    {
+      "host": "www.srf.ch",
+      "count": 3,
+      "share_pct": 75.0
+    },
+    {
+      "host": "www.nzz.ch",
+      "count": 1,
+      "share_pct": 25.0
+    }
+  ]
+}

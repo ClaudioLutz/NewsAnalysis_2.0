@@ -226,19 +226,20 @@ class GermanRatingFormatter:
             return None
         
         try:
-            instructions = """Extract exactly 3 concise, easy-to-read bullet points from the article summary.
+            instructions = """Extrahiere genau 3 prägnante, leicht lesbare Stichpunkte aus der Artikelzusammenfassung.
 
-Requirements:
-- Each point must be clear, direct, and understandable
-- Use simple, concrete language - avoid jargon where possible
-- Keep each point to 1-2 short sentences maximum
-- Focus on the most important facts or implications
-- Make it scannable and easy on the eyes
+Anforderungen:
+- Jeder Punkt muss klar, direkt und verständlich sein.
+- Verwende einfache, konkrete Sprache – wo möglich ohne Fachjargon.
+- Halte jeden Punkt bei 1–2 kurzen Sätzen.
+- Konzentriere dich auf die wichtigsten Fakten oder Implikationen.
+- Mach die Punkte gut scannbar und angenehm lesbar.
 
-Return only the 3 bullet points, one per line, starting with a dash (-)."""
+Gib ausschließlich die 3 Stichpunkte zurück, je einer pro Zeile, beginnend mit einem Bindestrich (-).
+"""
 
             response = self.client.responses.create(
-                model=os.getenv("MODEL_ANALYSIS", "gpt-5"),
+                model=os.getenv("MODEL_FULL", "gpt-5"),
                 instructions=instructions,
                 input=[{"role": "user", "content": f"Article summary:\n{summary}"}],
                 max_output_tokens=1000,
