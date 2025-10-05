@@ -141,10 +141,10 @@ class GermanRatingFormatter:
     # --- NEW: helpers -------------------------------------------------------
     def _resolve_source_metadata(self, source_urls: list[str]) -> list[dict]:
         """
-        Map each URL to {'url': str, 'title': Optional[str], 'summary': Optional[str], 'key_points': Optional[list]} 
+        Map each URL to {'url': str, 'title': str, 'summary': str, 'key_points': list} 
         using the SQLite DB (items and summaries tables).
         Generates key points from summary using GPT if available.
-        Falls back to None title/summary if not resolvable.
+        ONLY includes articles that have summaries - ensures complete, professional reports.
         """
         results: list[dict] = []
         if not source_urls:
@@ -186,20 +186,25 @@ class GermanRatingFormatter:
                     summary_row = cur.fetchone()
                     summary = summary_row["summary"] if summary_row and summary_row["summary"] else None
                     
-                    # Generate key points from summary
-                    key_points = self._generate_article_key_points(summary) if summary else None
-                    
-                    if key_points:
-                        self.logger.info(f"Generated {len(key_points)} key points for article: {title[:50] if title else url[:50]}")
+                    # ONLY include articles with summaries to ensure complete reports
+                    if summary:
+                        # Generate key points from summary
+                        key_points = self._generate_article_key_points(summary)
+                        
+                        if key_points:
+                            self.logger.info(f"Generated {len(key_points)} key points for article: {title[:50] if title else url[:50]}")
+                            results.append({"url": url, "title": title, "summary": summary, "key_points": key_points})
+                        else:
+                            # Skip articles where key point generation failed
+                            self.logger.debug(f"Skipping article - key point generation failed: {title[:50] if title else url[:50]}")
                     else:
-                        self.logger.warning(f"No key points generated for article: {title[:50] if title else url[:50]}")
-                    
-                    results.append({"url": url, "title": title, "summary": summary, "key_points": key_points})
-                else:
-                    results.append({"url": url, "title": None, "summary": None, "key_points": None})
+                        # Skip articles without summaries (debug level - this is expected during partial resets)
+                        self.logger.debug(f"Skipping article without summary: {title[:50] if title else url[:50]}")
+                # Note: We don't append articles without database entries - they won't be in the report
         except Exception as e:
             self.logger.warning(f"Could not resolve titles/summaries from DB: {e}")
-            results = [{"url": u, "title": None, "summary": None, "key_points": None} for u in source_urls]
+            # Return empty list on error to avoid incomplete reports
+            results = []
         finally:
             try:
                 conn.close()

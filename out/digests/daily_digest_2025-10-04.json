@@ -1,33 +1,34 @@
 {
   "date": "2025-10-04",
   "created_at": "2025-10-04T20:00:59.460313",
-  "generated_at": "2025-10-04T22:03:14.332692",
+  "generated_at": "2025-10-04T23:40:03.125027",
   "executive_summary": {
-    "headline": "Teurere Finanzierung, selektivere Kreditvergabe und höhere Rechtsrisiken: Schweizer Unternehmen müssen Kapital-, Kredit- und Compliance-Strategien neu ausrichten",
-    "executive_summary": "Zunehmend höhere Refinanzierungskosten (insbesondere über SARON-Margen) und der Mangel an günstigen Kundeneinlagen treiben Hypothekar- und Kreditkonditionen nach oben, dämpfen Immobiliennachfrage und belasten den Konsum. Parallel erhöhen anhaltende Rechts- und Politikrisiken (u. a. AT1-Verfahren, Abwicklungsfragen, Migrationspolitik) die Planungsunsicherheit für Banken und Unternehmen. Fälle wie die UBS-Exponierung gegenüber First Brands (rund 516 Mio. USD) zeigen Konzentrations- und Sicherheitenrisiken in Private-Debt- und Supply-Chain-Finanzierungen auf und machen strengere Transparenz- und Governance-Anforderungen wahrscheinlich. Wer jetzt Kapitalstruktur, Kreditportfolios und regulatorische Szenarien prüft, sichert sich einen Wettbewerbsvorteil in einem volatileren Umfeld.",
+    "headline": "Kapital teurer, Risiken grösser: Schweizer Unternehmen müssen Finanzierung, Absicherung und Resilienz stärken",
+    "executive_summary": "Steigende Finanzierungskosten und höhere operative Risiken setzen Schweizer Unternehmen und Finanzinstitute unter Druck: Hypothekar‑ und Refinanzierungsmargen klettern, Banken sehen erhöhte Kredit‑/Gegenparteirisiken (z.B. UBS‑Exposure) und wetter‑ sowie geopolitische Schocks erhöhen die Volatilität. Die Rechts‑ und Regulierungsunsicherheit am Finanzplatz – aktuell sichtbar in den AT1‑Streitigkeiten – schwächt Vertrauen und dürfte Emissionsbedingungen verschärfen. Gleichzeitig öffnen sich selektive Kapitalmarktfenster und die M&A‑Dynamik, weshalb Konsolidierung, Automatisierung und regionale Diversifikation als strategische Antworten an Bedeutung gewinnen. Firmen müssen kurzfristig Liquiditäts‑ und Zinsrisiken sichern und mittelfristig Risikogovernance, Versicherungsdeckung und Lieferketten resilienter aufstellen.",
     "key_themes": [
-      "Strukturell teurere Refinanzierung und breitere Margen (v. a. SARON) erhöhen Finanzierungskosten für Hypotheken und Unternehmen.",
-      "Selektivere Kreditvergabe reduziert Nachfrage und erhöht Selektionsdruck auf Immobilien- und Konsummärkte.",
-      "Erhöhte Rechts- und Politikrisiken (AT1-Streit, Abwicklungsregeln, Migrationspolitik) schaffen anhaltende Unsicherheit für Banken und Investoren.",
-      "Konzentrations- und Sicherheitenrisiken in Private Debt / Supply-Chain-Finanzierungen zwingen zu mehr Transparenz, Risikoaufteilung und Governance."
+      "Teureres Kapital und höhere Zinsrisiken: steigende Hypothekar‑ und Kreditmargen erhöhen Finanzierungsdruck und Bilanzrisiken.",
+      "Erhöhte Kredit‑ und Gegenparteirisiken bei Banken und Investoren, sichtbar an konkreten Exposures (z.B. UBS/First Brands) — strengere Risikolimits und Eigenmittelerwartungen folgen.",
+      "Rechts‑ und Regulierungsunsicherheit (AT1‑Streit) untergräbt Vertrauen in den Finanzplatz und kann Emissionsbedingungen sowie Investorenerwartungen verschärfen.",
+      "Operative Resilienz wird kritischer: Versicherungsdeckungen, Supply‑Chain‑Diversifikation und Schutz gegen wetter‑/geopolitische Schocks sind strategisch wichtig.",
+      "Selektive Chancen durch Marktfenster und M&A: Konsolidierung, Automatisierung und sektorale Repositionierung (z.B. Biotech) bieten Wachstumspfade trotz schwieriger Finanzierungslage."
     ],
     "top_priorities": [
-      "Überprüfen und diversifizieren Sie Funding- und Kapitalstruktur: Liquidity-Stresstests, Einlagenstrategien, alternative Refinanzierungsquellen und aktive Zins- bzw. Margin-Hedging-Maßnahmen implementieren.",
-      "Sofortige Durchsicht von Kredit- und Investitionsportfolios: Mortgages, CRE, Private Debt und Supply-Chain-Exponierungen auf Konzentrationen, Sicherheitenqualität und Ausfallwahrscheinlichkeiten scannen; Kreditrichtlinien straffen und Rückversicherung/Partizipation prüfen.",
-      "Regulatorische Szenarien und Stakeholder-Engagement verstärken: AT1- und Abwicklungs-Fallouts durchspielen, Reporting/Transparenz erhöhen und proaktiv den Dialog mit Regulatoren, Investoren und Pensionskassen suchen."
+      "Sichern Sie kurzfristig Liquidität und Zinspositionen: Stresstests für Funding, Laufzeitverlängerungen, Zinshedging und Diversifikation der Finanzierungsquellen (Banken, Kapitalmarkt, Eigenkapital) priorisieren.",
+      "Stärken Sie Risikogovernance und Gegenparteimanagement: Exposure‑Limits für Leveraged/Private‑Credit‑Engagements prüfen, Bankenexposures analysieren und Kapital‑/Eigenmittelplanung anpassen.",
+      "Erhöhen Sie operative Resilienz und realisieren Sie strategische Chancen: Versicherungsdeckung, Lieferketten‑Diversifikation und Kontinuitätspläne überprüfen; gezielte M&A‑/Automatisierungsinitiativen zur Kostenreduktion und Marktpositionierung prüfen."
     ],
-    "total_articles": 6,
+    "total_articles": 10,
     "total_topics": 3,
-    "generated_at": "2025-10-04T22:03:14.328444"
+    "generated_at": "2025-10-04T23:40:03.121010"
   },
   "trending_topics": [
     {
       "topic": "creditreform_insights",
-      "article_count": 34,
-      "avg_confidence": 0.762,
+      "article_count": 38,
+      "avg_confidence": 0.771,
       "source_diversity": 5,
       "active_days": 3,
-      "trend_score": 37.9
+      "trend_score": 39.74
     }
   ],
   "topic_digests": {
@@ -40,7 +41,7 @@
       "sources": [],
       "article_count": 0,
       "new_articles_count": 0,
-      "generated_at": "2025-10-04T22:01:46.270818",
+      "generated_at": "2025-10-04T23:37:51.209857",
       "was_updated": false
     },
     "schweizer_wirtschaft": {
@@ -52,68 +53,72 @@
       "sources": [],
       "article_count": 0,
       "new_articles_count": 0,
-      "generated_at": "2025-10-04T22:01:46.278003",
+      "generated_at": "2025-10-04T23:37:51.215825",
       "was_updated": false
     },
     "creditreform_insights": {
-      "headline": "Teureres Geld, Preisoffensiven und wachsende Rechts- sowie Politikrisiken: Die neue Agenda für Schweizer Unternehmen",
-      "why_it_matters": "Die Finanzierung wird teurer und selektiver, während der Konsum über aggressive Preisstrategien umkämpft ist. Parallel erhöhen Rechts- und Regulierungsthemen – von AT1-Verfahren bis Migrationspolitik – die Planungsunsicherheit. Wer jetzt seine Kapitalstruktur, Lieferketten und Marktposition aktiv absichert, verschafft sich robuste Wettbewerbsvorteile.",
+      "headline": "Schweizer Wirtschaft im Stresstest: Kapital teurer, Risiken höher – Konsolidierung und Resilienz im Fokus",
+      "why_it_matters": "Für Schweizer Unternehmen ziehen die Finanzierungskosten an, Versicherungsrisiken verteuern sich und geopolitische wie wetterbedingte Schocks erhöhen die operative Volatilität. Gleichzeitig verschiebt sich der Rechtsrahmen am Finanzplatz, während selektive Kapitalmarktfenster (z. B. Biotech) wieder aufgehen und M&A-Dynamik zunimmt. Firmen sollten Finanzierung, Absicherung, Versicherungsdeckung und Lieferketten robuster aufstellen – und Chancen durch Konsolidierung, Automatisierung und regionale Diversifikation nutzen.",
       "bullets": [
-        "Hypotheken werden strukturell teurer: Banken weiten Margen (v. a. bei SARON) aus, da günstige Kundeneinlagen fehlen. Das erhöht Wohn- und Finanzierungskosten, belastet Immobiliennachfrage und drückt Konsum – Kreditvergaben werden selektiver.",
-        "Rechtsrisiken im Schweizer Bankenumfeld bleiben: Die Abweisung der US-AT1-Klage stützt zwar die Staatenimmunität, beschleunigt aber die hängigen Schweizer Verfahren nicht. Unsicherheit über künftige Abwicklungsregeln kann AT1-Spreads treiben und die Refinanzierungskosten hiesiger Banken erhöhen.",
-        "Private-Debt-/Supply-Chain-Finanzierung unter der Lupe: UBS-Exponierung von rund 516 Mio. USD im Fall First Brands zeigt Konzentrations- und Sicherheitenrisiken. Erwartbare regulatorische und investorenseitige Transparenzforderungen treffen Schweizer Asset-Manager, Pensionskassen und Kreditfonds gleichermaßen.",
-        "Detailhandel im Preiskrieg: Migros’ Tiefpreis-Offensive und forcierten Zentralisierungen erhöhen den Druck auf Margen und Logistikkosten im Markt. Für Lieferanten bedeuten Sortimentstraffungen und Bündelungen härtere Listungsbedingungen – Effizienz, Skalierung und Co-Packing-Kompetenz werden entscheidend.",
-        "Autoindustrie fährt zweigleisig: Mercedes verlängert die Lebensdauer effizienter Verbrenner (inkl. PHEV) und investiert parallel in E‑Mobilität. Schweizer Zulieferer mit Dual-Kompetenz (ICE/EV), lokalisierbaren Lieferketten und Compliance-Fitness für re-regionalisierte Märkte sichern sich Aufträge – reiner EV‑Fokus bleibt risikobehaftet.",
-        "Politik als Standortfaktor: Eine strikte 10‑Millionen-Obergrenze würde Fachkräftezugang, Ansiedlungen und Wachstum dämpfen. Firmen sollten Szenarien für restriktivere Migration, höhere Wohnkosten und Infrastrukturengpässe planen – und gleichzeitig aktiv in Produktivität, Automatisierung und Talentbindung investieren."
+        "Banken- und Anlagerisiko rückt in den Fokus: UBS steckt mit rund 516 Mio. USD im insolventen US-Zulieferer First Brands – teils unbesichert. Das verschärft Reputations- und Regulierungsdebatten (Eigenmittel) und mahnt zu strengerem Risikomanagement bei Leveraged-/Private-Credit-Exposures, insbesondere in zyklischen Sektoren wie Autozulieferern.",
+        "Rechtslage zu AT1: Ein US-Gericht weist Klagen von CS-AT1-Gläubigern gegen die Schweiz ab (Staatenimmunität) – die Auseinandersetzung verlagert sich auf die Schweizer Verfahren. Für Emittenten/Investoren bedeutet das: weiter Unsicherheit über Rechtsauslegung, potenziell strengere AT1-Bedingungen und anhaltende Vertrauensarbeit für den Finanzplatz.",
+        "Finanzierungskosten steigen: Banken erhöhen Hypothekar-Margen (+10–40 bp; ZKB-Richtmarge 1,35%). Das dämpft Immobiliennachfrage, belastet Entwickler und erhöht Zinsrisiken in Bilanzen. Institute müssen Einlagenbasis stärken; Unternehmen und Private sollten Laufzeiten, Fixierungen und Zinsabsicherungen überprüfen.",
+        "Versicherungswirtschaft im Härtetest – und in der Konsolidierung: Helvetia erwartet dauerhaft höhere Gebäude- und Elementarschadenprämien (Blatten als Wendepunkt) und treibt die Fusion mit Baloise (Zielsynergien ~350 Mio. CHF, Effizienzprogramm ~200 Mio. CHF, ~500 Stellen betroffen) voran. Unternehmen sollten Deckungen, Selbstbehalte und Risk-Engineering anpassen; Cyber-Großschäden bleiben ohne staatlichen Backstop schwer versicherbar.",
+        "Energie- und Wetterrisiken treiben Kosten und Unsicherheit: Ukrainische Drohnenangriffe auf mind. 17 russische Raffinerien verknappen Treibstoffe und erhöhen Ölpreis-Volatilität; die IAEA warnt vor Risiken am AKW Saporischja. Sturm „Amy“ stört Strom- und Verkehrsnetze in Nordeuropa, mit Lieferketteneffekten bis in die Schweiz. Firmen sollten Energie- und Transportkosten hedgen, Lager- und BCM-Konzepte schärfen und alternative Routen/Provider sichern.",
+        "Selektive Chancen trotz Gegenwind: Biotech feiert ein Comeback (Idorsia >1 Mrd. CHF Marktwert; NBI-Erholung), gestützt von tieferen Zinsen und Pharma-M&A – jedoch mit hohem Entwicklungsrisiko, weshalb Diversifikation ratsam ist. Regional zeigt Thun, dass Diversifikation und neue Ankerprojekte (Logistik, Sport-, Forschungs-Campi) die Stoßdämpferfähigkeit gegenüber Unternehmenspleiten erhöhen."
       ],
       "sources": [
-        "https://www.derbund.ch/hypothekarzinsen-banken-erhoehen-zinsmarge-bei-hypotheken-367185815507",
-        "https://www.derbund.ch/mercedes-haelt-an-verbrennern-fest-357951984927",
-        "https://www.nzz.ch/finanzen/at1-glaeubiger-der-credit-suisse-erleiden-in-den-usa-eine-herbe-niederlage-was-das-fuer-die-verfahren-in-der-schweiz-bedeutet-ld.1905442",
         "https://www.srf.ch/news/wirtschaft/insolvenz-von-first-brands-das-gibt-aerger-faule-kredite-der-ubs-von-halber-milliarde-dollar",
-        "https://www.nzz.ch/wirtschaft/m-fuer-masterplan-wie-die-migros-genossenschaften-mit-der-tiefpreisstrategie-diszipliniert-werden-sollen-ld.1905077",
-        "https://www.nzz.ch/wirtschaft/die-expat-freunde-der-volkspartei-svp-regierungsraete-kritisieren-die-10-millionen-initiative-der-eigenen-partei-ld.1903839"
+        "https://www.nzz.ch/wirtschaft/helvetia-chef-praemien-fuer-hauseigentuemer-werden-steigen-ld.1904835",
+        "https://www.derbund.ch/thun-robuster-wirtschaftsstandort-trotz-meyer-burger-pleite-500319815293",
+        "https://www.derbund.ch/gegenangriffe-mit-drohnen-ukraine-attackiert-russische-raffinerien-994444200228",
+        "https://www.nzz.ch/finanzen/at1-glaeubiger-der-credit-suisse-erleiden-in-den-usa-eine-herbe-niederlage-was-das-fuer-die-verfahren-in-der-schweiz-bedeutet-ld.1905442",
+        "https://www.derbund.ch/hypothekarzinsen-banken-erhoehen-zinsmarge-bei-hypotheken-367185815507",
+        "https://www.nzz.ch/wirtschaft/biotech-firmen-wie-idorsia-feiern-an-der-boerse-ein-comeback-ld.1905276",
+        "https://www.srf.ch/news/international/ukraine/krieg-in-der-ukraine-iaea-aufruf-zur-loesung-des-stromproblems-im-akw-saporischja",
+        "https://www.srf.ch/news/international/wahlen-in-tschechien-der-tschechische-trump-ist-zurueck-an-der-macht",
+        "https://www.nzz.ch/panorama/der-atlantiksturm-amy-sorgt-fuer-stromausfaelle-und-richtet-verkehrschaos-an-auch-fuer-die-schweiz-gilt-eine-wetterwarnung-ld.1905626"
       ],
       "topic": "creditreform_insights",
       "date_range": "today",
-      "article_count": 6,
-      "generated_at": "2025-10-04T22:02:58.469422",
-      "new_articles_count": 6,
+      "article_count": 10,
+      "generated_at": "2025-10-04T23:39:46.293732",
+      "new_articles_count": 10,
       "was_updated": true
     }
   },
   "generation_type": "incremental",
   "stats": {
     "topics": 3,
-    "total_articles": 6,
-    "new_articles": 6,
+    "total_articles": 10,
+    "new_articles": 10,
     "api_calls_made": 1,
-    "execution_time_seconds": 72.22334098815918
+    "execution_time_seconds": 115.10809826850891
   },
   "cross_run_dedup_stats": {
-    "articles_processed": 6,
+    "articles_processed": 10,
     "duplicates_found": 0,
-    "unique_articles": 6,
+    "unique_articles": 10,
     "first_run": true
   },
   "source_yield": [
     {
       "host": "www.nzz.ch",
-      "count": 3,
-      "share_pct": 50.0
+      "count": 4,
+      "share_pct": 40.0
     },
     {
       "host": "www.derbund.ch",
-      "count": 2,
-      "share_pct": 33.3
+      "count": 3,
+      "share_pct": 30.0
     },
     {
       "host": "www.srf.ch",
-      "count": 1,
-      "share_pct": 16.7
+      "count": 3,
+      "share_pct": 30.0
     }
   ],
   "updated": true,
-  "last_updated": "2025-10-04T22:03:14.332692",
+  "last_updated": "2025-10-04T23:40:03.125027",
   "topics_updated": 1
 }

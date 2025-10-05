@@ -2,11 +2,15 @@
 """
 Rerun Today's Pipeline - Testing Script
 
-Completely resets today's matched articles and reruns the entire pipeline
+Completely resets today's articles and reruns the entire pipeline
 to test fixes for cross-run deduplication and other features.
 
 Usage:
-    python scripts/rerun_todays_pipeline.py
+    python scripts/rerun_todays_pipeline.py [--all]
+    
+Options:
+    --all    Reset ALL articles from today (not just matched ones)
+             Use this for clean testing with incremental digests
 """
 
 import os
@@ -18,8 +22,15 @@ from zoneinfo import ZoneInfo
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def reset_todays_articles(db_path: str = "news.db"):
-    """Completely reset today's matched articles for reprocessing."""
+def reset_todays_articles(db_path: str = "news.db", reset_all: bool = False):
+    """
+    Completely reset today's articles for reprocessing.
+    
+    Args:
+        db_path: Path to database
+        reset_all: If True, reset ALL articles from today (not just matched ones)
+                  If False, only reset matched creditreform_insights articles
+    """
     
     TZ = ZoneInfo("Europe/Zurich")
     today = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -29,17 +40,26 @@ def reset_todays_articles(db_path: str = "news.db"):
     print("RERUN TODAY'S PIPELINE - RESET SCRIPT")
     print(f"{'='*70}\n")
     print(f"Date: {today.strftime('%Y-%m-%d')}")
-    print(f"Cutoff: {today_iso}\n")
+    print(f"Cutoff: {today_iso}")
+    print(f"Mode: {'FULL DAY RESET' if reset_all else 'MATCHED ARTICLES ONLY'}\n")
     
     conn = sqlite3.connect(db_path)
     
     # Get article IDs to reset
-    cursor = conn.execute("""
-        SELECT id, title, source FROM items
-        WHERE triage_topic = 'creditreform_insights'
-        AND is_match = 1
-        AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
-    """, (today_iso, today_iso))
+    if reset_all:
+        # Reset ALL articles from today
+        cursor = conn.execute("""
+            SELECT id, title, source FROM items
+            WHERE (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+        """, (today_iso, today_iso))
+    else:
+        # Reset only matched creditreform_insights articles
+        cursor = conn.execute("""
+            SELECT id, title, source FROM items
+            WHERE triage_topic = 'creditreform_insights'
+            AND is_match = 1
+            AND (published_at >= ? OR (published_at IS NULL AND first_seen_at >= ?))
+        """, (today_iso, today_iso))
     
     articles_to_reset = cursor.fetchall()
     
@@ -48,7 +68,7 @@ def reset_todays_articles(db_path: str = "news.db"):
         conn.close()
         return
     
-    print(f"Found {len(articles_to_reset)} matched articles from today:\n")
+    print(f"Found {len(articles_to_reset)} articles from today:\n")
     for i, (article_id, title, source) in enumerate(articles_to_reset[:10], 1):
         print(f"  {i}. [{source}] {title[:60]}...")
     if len(articles_to_reset) > 10:
@@ -106,6 +126,19 @@ def reset_todays_articles(db_path: str = "news.db"):
     
     processed_links_deleted = cursor.rowcount
     
+    # Clear digest state for today to force fresh digest generation
+    today_str = today.strftime('%Y-%m-%d')
+    cursor = conn.execute("""
+        DELETE FROM digest_state WHERE digest_date = ?
+    """, (today_str,))
+    digest_state_deleted = cursor.rowcount
+    
+    # Clear digest generation log for today
+    cursor = conn.execute("""
+        DELETE FROM digest_generation_log WHERE digest_date = ?
+    """, (today_str,))
+    digest_log_deleted = cursor.rowcount
+    
     conn.commit()
     conn.close()
     
@@ -116,6 +149,8 @@ def reset_todays_articles(db_path: str = "news.db"):
     print(f"  - Deleted {signatures_deleted} cross-run topic signatures")
     print(f"  - Deleted {clusters_deleted} cluster assignments")
     print(f"  - Deleted {processed_links_deleted} processed link records")
+    print(f"  - Cleared {digest_state_deleted} digest state entries")
+    print(f"  - Cleared {digest_log_deleted} digest generation log entries")
     print(f"\n{'='*70}")
     print("Ready to rerun pipeline!")
     print(f"{'='*70}\n")
@@ -123,4 +158,12 @@ def reset_todays_articles(db_path: str = "news.db"):
     print()
 
 if __name__ == "__main__":
-    reset_todays_articles()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Reset today's articles for pipeline rerun")
+    parser.add_argument('--all', action='store_true', 
+                       help='Reset ALL articles from today (not just matched ones)')
+    
+    args = parser.parse_args()
+    
+    reset_todays_articles(reset_all=args.all)

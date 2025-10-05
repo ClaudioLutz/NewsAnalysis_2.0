@@ -154,7 +154,7 @@ class NewsPipeline:
                       f"Creating comprehensive daily digest in {export_format} format")
         
         # Export daily digest with run_id context
-        output_path = self.analyzer.export_daily_digest(format=export_format, run_id=run_id)
+        output_path = self.analyzer.export_enhanced_daily_digest(format=export_format)
         
         duration = time.time() - start_time
         log_results = {
