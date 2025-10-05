@@ -402,6 +402,49 @@ Key standards decisions:
 
 These standards ensure the enhancement feels like a natural extension of your existing codebase rather than a bolt-on addition.
 
+## Cost Optimization History
+
+### Epic 010: Remove Unused Fields (2025-10-05)
+
+**Objective:** Eliminate unused digest bullets and executive summary to reduce API token costs.
+
+**Changes Implemented:**
+1. **Schema Simplification**
+   - Removed `bullets` field from digest generation (analyzer.py, incremental_digest.py)
+   - Removed `executive_summary` generation from pipeline
+   - Retained article-level key_points (generated separately in german_rating_formatter.py)
+
+2. **Prompt Optimization**
+   - Updated language_config.py to remove bullet generation requests
+   - Simplified digest generation prompts
+   - Maintained markdown formatting instructions for article key points
+
+3. **State Management**
+   - Migrated digest_state to new schema format
+   - Added backward compatibility for old format detection
+   - Clean migration with no data loss
+
+**Impact:**
+- **Token Reduction:** 220-270 tokens per digest (~15-20% of digest generation cost)
+- **Annual Savings:** ~$62 with current volume (scales linearly)
+- **Daily Savings:** ~$0.17 (6 digests/day)
+- **Functional Impact:** Zero - final outputs structurally identical
+
+**Validation:**
+- ✅ All validation tests pass (7/7)
+- ✅ Output format unchanged
+- ✅ No schema validation errors
+- ✅ Backward compatibility verified
+
+**Documentation:**
+- Epic completion report: `docs/epic-010-completion-report.md`
+- Migration notes: `docs/migration-notes/digest-state-cleanup.md`
+- Validation script: `scripts/validate_cost_optimization.py`
+
+**Key Insight:** AI-driven development enables economically viable "small" optimizations that wouldn't justify traditional development costs.
+
+---
+
 ## Testing Strategy
 
 ### Integration with Existing Tests

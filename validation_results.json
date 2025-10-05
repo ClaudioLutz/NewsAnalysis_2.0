@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-10-05T19:39:44.332815",
+  "tests": {
+    "analyzer.py schema excludes bullets": {
+      "passed": true,
+      "message": "Schema correctly excludes bullets",
+      "warning": false
+    },
+    "incremental_digest.py schema excludes bullets": {
+      "passed": true,
+      "message": "Schema correctly excludes bullets (backward compatibility references OK)",
+      "warning": false
+    },
+    "language_config.py prompts exclude digest bullet requests": {
+      "passed": true,
+      "message": "Prompts correctly exclude digest bullet requests (markdown formatting OK)",
+      "warning": false
+    },
+    "Executive summary generation removed": {
+      "passed": true,
+      "message": "Executive summary generation removed",
+      "warning": false
+    },
+    "Digest state uses new schema": {
+      "passed": true,
+      "message": "All 1 digest states use new schema",
+      "warning": false
+    },
+    "Output format unchanged": {
+      "passed": true,
+      "message": "Output format preserved (headlines + article bullets present)",
+      "warning": false
+    },
+    "Backward compatibility implemented": {
+      "passed": true,
+      "message": "Backward compatibility code present",
+      "warning": false
+    }
+  },
+  "summary": {
+    "total_tests": 7,
+    "passed": 7,
+    "failed": 0,
+    "warnings": 0
+  }
+}

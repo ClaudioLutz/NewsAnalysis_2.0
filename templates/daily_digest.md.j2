@@ -65,7 +65,7 @@
 
 ## Report Metadata
 
-- **Total Articles:** {{ data.executive_summary.total_articles | default('N/A') }}
+- **Total Articles:** {{ data.total_articles | default('N/A') }}
 - **Report Date:** {{ data.date }}
 - **Generation Time:** {{ data.generated_at | datetime_format }}
 {% if data.get('cross_run_dedup_stats') %}- **Cross-run Dedup:** {{ data.get('cross_run_dedup_stats', {}).get('duplicates_found', data.get('cross_run_dedup_stats', {}).get('duplicates_filtered', 0)) }} filtered{% endif %}
