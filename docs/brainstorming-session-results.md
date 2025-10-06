@@ -1,288 +1,292 @@
-# Story Clustering Implementation - Brainstorming Session Results
+# Brainstorming Session Results
 
-**Session Date:** 2025-10-03  
-**Topic:** Implementation approaches for story clustering logic in NewsAnalysis_2.0  
-**Goal:** Transform output from topic-aggregated summaries to individual article-link-summary pairs with intelligent topic deduplication  
-**Approach:** Hybrid brainstorming combining problem decomposition, technical architecture, workflow mapping, and comparative analysis
+**Session Date:** October 5, 2025  
+**Facilitator:** Business Analyst Mary  
+**Participant:** User  
+
+---
 
 ## Executive Summary
 
-**Session Scope:**
-- Focus on implementation approaches for semantic story clustering
-- Preserve existing sophisticated filtering logic
-- Enable multiple daily runs with topic-level deduplication
-- Transform output format while maintaining incremental processing capabilities
+**Topic:** Centralizing GPT-5 Model Instructions for News Analysis Pipeline
 
-**Current System Context:**
-- Sophisticated 5-step pipeline with incremental digest generation
-- Entity extraction already available from existing summaries
-- digest_state table tracks processed articles per topic/date
-- Template-based output generation using Jinja2
+**Session Goals:** Focused ideation on specific approaches to centralize scattered system prompts across the codebase
 
----
+**Techniques Used:** 
+- First Principles Thinking
+- Morphological Analysis  
+- Forced Relationships
 
-## Phase 1: Problem Decomposition
+**Total Ideas Generated:** 15+ design decisions and architectural approaches
 
-### Core Challenge Analysis
-**Fundamental Question:** "What makes two articles about the same story?"
-
-**Context:** Multiple Swiss news sources (NZZ, Blick, Handelszeitung, etc.) covering same events
-**Goal:** Identify reliable clustering signals for Swiss business news ecosystem
-
-### User Input - Story Similarity Patterns
-**Key Insight:** Deduplication logic already exists and works effectively using GPT-5-mini model that identifies duplicates from titles/links.
-
-**The Real Challenge:** Cross-run deduplication within the same day
-- Want to run pipeline multiple times per day (morning, afternoon, etc.)
-- If a topic was covered in the morning report, it should NOT appear in the afternoon report
-- Need to track "what topics have already been reported today" across multiple daily runs
-- This is different from cross-source deduplication (which already works)
-
-**Business Logic Requirement:** 
-- Day-level topic persistence across multiple pipeline executions
-- Same-day topic exclusion logic
-- Maintain topic uniqueness for entire day, reset at midnight
+**Key Themes Identified:**
+- Discoverability as the core pain point
+- Separation of concerns (PromptLibrary vs LanguageConfig)
+- Pipeline stage organization for intuitive navigation
+- Documentation as self-service enabler
+- YAML for accessibility to non-developers
+- Big bang migration for clean transition
 
 ---
 
-## Phase 2: Technical Architecture Exploration
+## Technique Sessions
 
-### Challenge Refinement
-**The Real Problem:** Not story clustering, but **topic persistence across same-day runs**
+### First Principles Thinking - 15 minutes
 
-**Current State:**
-- Cross-source deduplication: ✅ Works (GPT-5-mini on titles/links)  
-- Incremental daily updates: ✅ Works (digest_state table)
-- Output format: ❌ Needs change (topic-aggregated → individual articles)
-- Cross-run topic exclusion: ❌ New requirement
+**Description:** Breaking down the problem to fundamental truths and building up from there
 
-### Architecture Options for Topic Persistence
+**Ideas Generated:**
 
-#### Option 1: Topic Signature Tracking
-**Concept:** Create unique signatures for each topic/story and track what's been reported
-**Implementation Approaches:**
+1. **Core Element Identification:** System prompts are the atomic unit that needs centralization
+2. **Discovery Problem:** Prompts are hard to find because they're embedded across 7 different Python files
+3. **Current State Analysis:** Discovered prompts scattered in:
+   - `summarizer.py` - hardcoded system prompt
+   - `gpt_deduplication.py` - clustering prompt
+   - `german_rating_formatter.py` - DUPLICATES rating prompt already in language_config!
+   - `filter.py` - classification prompt + creditreform system prompt builder
+   - `cross_run_deduplication.py` - dedup prompt
+   - `incremental_digest.py` - uses language_config methods
+   - `analyzer.py` - uses language_config methods
+4. **Existing Foundation:** `language_config.py` already has partial centralization but mixes language switching with prompt management
+5. **Architectural Decision:** Create separate PromptLibrary/PromptRegistry class to maintain separation of concerns
 
-### ✅ User's Preferred Approach: Two-Step GPT Deduplication
+**Insights Discovered:**
+- The real problem isn't just organization - it's discoverability
+- Partial centralization already exists but responsibility is mixed
+- Duplication exists (german_rating_formatter duplicates language_config prompt)
+- About 40% of prompts are already centralized, 60% scattered
 
-**Step 1: Cross-Source Deduplication** ✅ Already implemented
-- GPT-5-mini compares titles/links to identify duplicate articles from different sources
-- Works effectively for same story across multiple news sources
-
-**Step 2: Cross-Run Topic Deduplication** ❌ Needs implementation  
-- GPT-5-mini compares new articles against "already covered topics from today"
-- Question: "Is this article about a topic that was already covered in a previous run today?"
-- Leverages same proven GPT approach but different comparison logic
-
-### Implementation Architecture for Step 2
-
-#### Approach A: Compare Against Previous Article Summaries
-**Data Flow:**
-1. New articles come in (afternoon run)
-2. Retrieve all article summaries from morning run(s) 
-3.0 GPT-5-mini deduplicate Articles from this run
-3.1 GPT-5-mini comparison: "Is new article about same topic as any of these previous summaries?"
-4. Filter out matches, proceed with remaining articles
-
-#### Approach B: Compare Against Previous Topic Digest Headlines  
-**Data Flow:**
-1. New articles come in (afternoon run)
-2. Retrieve topic digest headlines from morning run(s)
-3. GPT-5-mini comparison: "Is new article about same topic as these previous headlines?"
-4. More efficient (fewer tokens) but potentially less accurate
-
-#### Approach C: Hybrid - Previous Summaries + Topic Signatures
-**Data Flow:**
-1. Store simplified "topic signatures" from morning run
-2. GPT comparison against both individual summaries AND topic themes
-3. Best accuracy with manageable token usage
-
-### ✅ Selected Architecture: Approach A - Full Summary Comparison
-
-**User Decision:** Approach A - Compare against all previous article summaries from today
-**Rationale:** Maximum accuracy, leverage existing rich summary data
-**Trade-off:** Accept higher token usage for better precision
-
-**Pipeline Integration Point:** 
-After existing deduplication step (Step 1) but requires summaries to exist
-**Proposed Flow:**
-1. NewsCollector (includes existing cross-source deduplication ✅)
-2. AIFilter 
-3. ContentScraper
-4. ArticleSummarizer
-5. **NEW: Cross-Run Topic Deduplication** (Step 4.5)
-6. MetaAnalyzer (modified for individual article output)
-
-### Detailed Implementation for Step 4.5 - CORRECTED FLOW
-
-**Input:** Newly summarized articles from current run
-**Process:** 
-1. New articles come in (afternoon run)
-2. Retrieve all article summaries from morning run(s)
-3.0 GPT-5-mini deduplicate articles from THIS run - **✅ Already implemented**
-    - Cross-source deduplication within current run
-    - Keep the article with the most words when duplicates found
-3.1 GPT-5-mini comparison: "Is new article about same topic as any of these previous summaries?" 
-    - Compare against previous runs' summaries from today
-    - **Remove articles** that match topics already covered
-4. Filter out topic matches, proceed with remaining articles
-5. Pass remaining "unique topic" articles to MetaAnalyzer
-
-**Database Schema Extension:**
-```sql
--- Track cross-run topic deduplication
-ALTER TABLE summaries ADD COLUMN topic_already_covered BOOLEAN DEFAULT FALSE;
-ALTER TABLE summaries ADD COLUMN matched_previous_summary_id INTEGER;
-```
+**Notable Connections:**
+- LanguageConfig should focus on language switching
+- PromptLibrary should focus on prompt management
+- These two concerns should work together but remain separate
 
 ---
 
-## Phase 3: User Experience Validation
+### Morphological Analysis - 20 minutes
 
-### Daily Workflow Scenarios
+**Description:** Systematically exploring all design dimensions to make informed architectural decisions
 
-#### Scenario A: Morning Run (8:00 AM)
-- **Input:** 15-20 new articles from overnight/early morning
-- **Process:** Normal pipeline flow (no previous summaries to compare against)
-- **Output:** Management Summary + 12-15 individual article-link-summary pairs
-- **Result:** Full report with all unique topics
+**Ideas Generated:**
 
-#### Scenario B: Afternoon Run (2:00 PM)
-- **Input:** 10-15 new articles from midday sources
-- **Cross-Run Check:** Compare against morning's 12-15 summaries
-- **Filtering:** Maybe 5-7 articles filtered out as "topic already covered"
-- **Output:** Management Summary + 5-8 NEW individual article-link-summary pairs
-- **Result:** Supplemental report with only new topics
+1. **Organizational Structure:** Pipeline stage organization (filtering, deduplication, analysis, formatting, digest)
+2. **Access Pattern:** Method-based access following existing patterns: `prompt_lib.filtering.classification_prompt(topic)`
+3. **Language Integration:** PromptLibrary accepts LanguageConfig to return language-appropriate prompts
+4. **Storage Format:** YAML configuration files for accessibility to non-developers
+5. **Parameterization:** Simple Python string templates using `{variable}` syntax
+6. **File Organization:** One YAML file per pipeline stage in `config/prompts/` directory
+7. **Migration Strategy:** Big Bang - migrate all prompts at once for clean transition
 
-#### Scenario C: Evening Run (6:00 PM)
-- **Input:** 8-12 new articles from late afternoon
-- **Cross-Run Check:** Compare against ALL summaries from morning + afternoon runs  
-- **Filtering:** Maybe 3-4 articles filtered out
-- **Output:** Management Summary + 4-8 NEW individual article-link-summary pairs
+**Insights Discovered:**
+- Each design dimension has trade-offs between simplicity and power
+- Matching existing code patterns (language_config) improves adoption
+- YAML strikes balance between accessibility and structure
+- Pipeline stage organization maps to developer mental model
+- Method-based access provides best IDE support (autocomplete, type hints)
 
-### Output Format Evolution
-
-**Current Format:**
-```
-Management Summary
-├── Topic: Swiss Banking Regulations
-│   └── [Aggregated summary from 3 articles]
-└── Topic: Credit Risk Updates  
-    └── [Aggregated summary from 5 articles]
-```
-
-**New Format:**
-```
-Management Summary (Overview of 8 unique topics found)
-├── [Swiss Bank UBS CEO Change] → Link + Individual Summary
-├── [FINMA New Capital Requirements] → Link + Individual Summary  
-├── [Creditreform Rating Methodology Update] → Link + Individual Summary
-└── [Swiss SME Credit Default Analysis] → Link + Individual Summary
-```
+**Notable Connections:**
+- Organization by pipeline stage mirrors the actual codebase structure
+- Simpler parameterization (string templates vs Jinja2) reduces complexity without losing flexibility
+- One-file-per-stage balances granularity with manageability
 
 ---
 
-## Phase 4: Best Practice Integration
+### Forced Relationships - 10 minutes
 
-### Reference Implementations Analysis
+**Description:** Connecting PromptLibrary concept with unrelated domains to spark innovative features
 
-#### Google News Approach
-- **Method:** Content similarity scoring + time-based clustering
-- **Pros:** Handles high volume, good at breaking news
-- **Cons:** Less semantic understanding, more false positives
-- **Applicability:** Your GPT approach is superior for semantic accuracy
+**Ideas Generated:**
 
-#### Apple News Approach  
-- **Method:** Editorial curation + algorithmic filtering
-- **Pros:** High quality, human oversight
-- **Cons:** Not scalable, requires manual intervention
-- **Applicability:** Your automated approach better for business intelligence
+1. **Documentation System Integration:** Add rich metadata to each prompt in YAML
+   - Description of what the prompt does
+   - Purpose and context of use
+   - Parameter specifications (name, required, description)
+   - Example usage code
+   - Cost estimates per API call
 
-#### Reuters/Bloomberg Terminal Approach
-- **Method:** Topic tagging + entity matching
-- **Pros:** Business-focused, entity-centric
-- **Cons:** Requires extensive entity databases
-- **Applicability:** Similar philosophy but your GPT approach more flexible
+**Insights Discovered:**
+- Self-documenting prompts reduce onboarding friction
+- Documentation in YAML keeps information close to the source
+- Rich metadata enables future tooling (cost analysis, usage tracking)
 
-### Performance Optimization Strategies
-
-#### Token Management
-- **Batch Comparison:** Compare new article against multiple previous summaries in single GPT call
-- **Summary Truncation:** Use only key points from previous summaries (first 200 chars)
-- **Smart Caching:** Cache topic comparison results to avoid re-processing
-
-#### Database Optimization
-- **Indexing:** Add indexes on date columns for fast "today's summaries" queries
-- **Archiving:** Archive old summaries to separate table after 7 days
-- **Query Optimization:** Use prepared statements for repeated queries
+**Notable Connections:**
+- Documentation makes the library discoverable AND understandable
+- Example usage reduces "how do I use this?" questions
+- Cost estimates help with budget planning and optimization
 
 ---
 
-## Synthesis & Action Plan
+## Idea Categorization
 
-### Core Implementation Requirements
+### Immediate Opportunities
+*Ideas ready to implement now*
 
-#### 1. New Cross-Run Deduplication Module
-**File:** `news_pipeline/cross_run_deduplicator.py`
-**Key Methods:**
-- `get_todays_previous_summaries(date)` 
-- `compare_against_previous_topics(new_summary, previous_summaries)`
-- `filter_already_covered_topics(new_articles)`
+1. **Create PromptLibrary Core Structure**
+   - Description: Build the base PromptLibrary class with pipeline stage organization
+   - Why immediate: Architecture is well-defined, no blocking dependencies
+   - Resources needed: 1-2 days development time, existing codebase knowledge
 
-#### 2. Database Schema Updates
-**Migration Script:** `scripts/add_cross_run_deduplication_schema.py`
-**Changes:**
-- Add topic tracking columns to summaries table
-- Create indexes for fast date-based queries
-- Add audit trail for filtered articles
+2. **Extract Prompts to YAML Files**
+   - Description: Create YAML files for each pipeline stage with all current prompts
+   - Why immediate: All prompts have been identified and cataloged
+   - Resources needed: Careful extraction from 7 source files, validation of prompt accuracy
 
-#### 3. Modified Template for Individual Articles
-**File:** `templates/individual_articles_digest.md.j2`
-**Structure:**
-- Management summary (topic overview)
-- Individual article-link-summary pairs
-- Metadata about filtering (X topics already covered today)
+3. **Migrate language_config.py Prompts**
+   - Description: Move prompts from language_config to new PromptLibrary, keep language switching logic
+   - Why immediate: Clear separation of concerns, reduces mixed responsibility
+   - Resources needed: Refactoring existing code, maintaining backward compatibility during transition
 
-#### 4. Enhanced MetaAnalyzer Integration
-**File:** `news_pipeline/enhanced_analyzer.py`
-**Modifications:**
-- Integrate cross-run deduplication before digest generation
-- Modify output structure for individual articles
-- Update incremental digest logic
+4. **Add Rich Documentation to YAML**
+   - Description: Document each prompt with description, parameters, usage examples, cost estimates
+   - Why immediate: Information is fresh from analysis, benefits immediate
+   - Resources needed: Time to write good documentation (2-3 hours per stage)
 
-### Priority Implementation Order
+### Future Innovations
+*Ideas requiring development/research*
 
-#### Phase 1: Core Deduplication Logic (Week 1)
-1. ✅ Create cross_run_deduplicator.py module
-2. ✅ Implement GPT-based topic comparison logic
-3. ✅ Add database schema changes
-4. ✅ Unit tests for deduplication logic
+1. **Prompt Versioning System**
+   - Description: Track prompt changes over time, enable A/B testing and rollback
+   - Development needed: Design versioning schema, implement tracking mechanism
+   - Timeline estimate: 1-2 weeks after initial implementation
 
-#### Phase 2: Pipeline Integration (Week 2)
-1. ✅ Integrate into existing pipeline after Step 4
-2. ✅ Modify EnhancedMetaAnalyzer for individual output
-3. ✅ Update template system
-4. ✅ End-to-end testing with multiple daily runs
+2. **Automated Prompt Testing**
+   - Description: Test fixtures showing expected outputs, validation in CI/CD
+   - Development needed: Create test framework, define success criteria
+   - Timeline estimate: 2-3 weeks, requires stable PromptLibrary first
 
-#### Phase 3: Performance & Polish (Week 3)
-1. ✅ Optimize token usage and batch processing
-2. ✅ Add monitoring and metrics
-3. ✅ Create migration script for existing data
-4. ✅ Documentation and deployment guide
+3. **Prompt Performance Analytics**
+   - Description: Track which prompts are used most, their costs, success rates
+   - Development needed: Instrumentation, metrics collection, dashboard
+   - Timeline estimate: 3-4 weeks, requires production data
 
-### Success Criteria
+### Moonshots
+*Ambitious, transformative concepts*
 
-#### Functional Requirements
-- ✅ Multiple daily runs produce non-overlapping topics
-- ✅ Output format: Management Summary + Individual Articles
-- ✅ Sophisticated filtering logic preserved
-- ✅ Performance acceptable (< 15 minutes per run)
+1. **AI-Powered Prompt Optimization**
+   - Description: Use AI to suggest prompt improvements based on output quality and cost
+   - Transformative potential: Continuous improvement of prompt effectiveness
+   - Challenges to overcome: Defining "quality", measuring improvement, avoiding regression
 
-#### Quality Metrics
-- **Topic Deduplication Accuracy:** >90% correct topic exclusions
-- **False Positive Rate:** <5% unique topics incorrectly filtered
-- **Performance Target:** Additional processing time <2 minutes
-- **Token Efficiency:** <50% increase in OpenAI API costs
+2. **Multi-Language Prompt Management**
+   - Description: Expand beyond German/English to support multiple languages dynamically
+   - Transformative potential: Make system truly international
+   - Challenges to overcome: Translation quality, cultural context, maintenance overhead
+
+### Insights & Learnings
+*Key realizations from the session*
+
+- **Discoverability drives design:** The core problem wasn't organization but finding prompts when needed. This insight shaped every subsequent decision.
+- **Existing patterns matter:** Matching the existing language_config pattern improved adoption likelihood and reduced cognitive load.
+- **Simplicity over power:** Simple string templates beat Jinja2 templates because they're "good enough" without added complexity.
+- **Documentation is feature one:** Self-documenting YAML with rich metadata turns the library from code to knowledge base.
+- **Big Bang is brave but clean:** While risky, migrating all at once avoids long-term technical debt of dual systems.
+- **Separation of concerns unlocks flexibility:** PromptLibrary + LanguageConfig working together beats mixing responsibilities in one class.
 
 ---
 
-*Session completed with comprehensive technical architecture and implementation roadmap*
+## Action Planning
+
+### Top 3 Priority Ideas
+
+#### #1 Priority: Create PromptLibrary Architecture & Core Implementation
+
+- **Rationale:** Foundation must be solid before any prompts can migrate. This is the enabling infrastructure.
+- **Next steps:**
+  1. Create `news_pipeline/prompt_library.py` with main PromptLibrary class
+  2. Design stage-specific subclasses (FilteringPrompts, DeduplicationPrompts, etc.)
+  3. Implement YAML loading and caching mechanism
+  4. Add language integration with LanguageConfig
+  5. Create example prompt to validate architecture
+- **Resources needed:** 
+  - Python development skills
+  - Understanding of current codebase structure
+  - Access to modify news_pipeline module
+- **Timeline:** 1-2 days for core architecture
+
+#### #2 Priority: Create YAML Files with Documented Prompts
+
+- **Rationale:** Extract all current prompts into well-documented YAML files. This makes the invisible visible.
+- **Next steps:**
+  1. Create `config/prompts/` directory
+  2. Extract prompts from each of 7 source files
+  3. Create YAML files: filtering.yaml, deduplication.yaml, analysis.yaml, formatting.yaml, digest.yaml
+  4. Add rich documentation for each prompt (description, parameters, usage examples, cost estimates)
+  5. Validate YAML syntax and completeness
+  6. Remove duplicate prompts (e.g., german_rating_formatter duplicate)
+- **Resources needed:**
+  - Access to all source files
+  - YAML editing/validation
+  - Documentation writing time
+  - Domain knowledge for cost estimates
+- **Timeline:** 2-3 days for extraction and documentation
+
+#### #3 Priority: Big Bang Migration with Validation
+
+- **Rationale:** Once infrastructure and YAML are ready, migrate all files at once for clean cut-over.
+- **Next steps:**
+  1. Update all 7 files to use PromptLibrary instead of hardcoded prompts
+  2. Refactor language_config.py to remove prompt management, keep language switching
+  3. Add integration tests to validate prompt delivery
+  4. Test each pipeline stage end-to-end
+  5. Create migration documentation
+  6. Deploy and monitor for issues
+- **Resources needed:**
+  - Comprehensive testing environment
+  - Ability to test full pipeline
+  - Rollback plan if issues occur
+  - Time for thorough validation
+- **Timeline:** 2-3 days for migration and validation
+
+---
+
+## Reflection & Follow-up
+
+### What Worked Well
+
+- First Principles helped cut through complexity to identify core problem (discoverability)
+- Morphological Analysis systematically explored all design dimensions
+- Forced Relationships introduced documentation as a first-class feature
+- Incremental questioning built up solution piece by piece
+- Discovering actual codebase state grounded decisions in reality
+
+### Areas for Further Exploration
+
+- **Prompt versioning strategy:** How to track changes, A/B test, and rollback prompts safely
+- **Cost monitoring:** How to track and optimize costs per prompt over time
+- **Prompt quality metrics:** How to measure if a prompt change improves output quality
+- **Migration testing strategy:** Comprehensive test plan for big bang migration
+- **Developer onboarding:** How to teach team to use new PromptLibrary effectively
+
+### Recommended Follow-up Techniques
+
+- **Mind Mapping:** Create visual map of PromptLibrary architecture and relationships
+- **SCAMPER Method:** Apply to existing design to identify potential improvements
+- **Five Whys:** Deep-dive into migration risks to plan mitigation strategies
+- **Assumption Reversal:** Challenge assumptions about big bang migration vs incremental
+
+### Questions That Emerged
+
+- Should PromptLibrary support prompt composition (building complex prompts from smaller pieces)?
+- How will we handle prompt parameters that need complex objects, not just strings?
+- Should there be a CLI tool to view/test prompts without running the pipeline?
+- How do we prevent prompts in YAML from getting out of sync with code expectations?
+- What's the rollback plan if the migration causes production issues?
+- Should we create a prompt "playground" for testing prompt changes before deployment?
+
+### Next Session Planning
+
+- **Suggested topics:** 
+  - Migration planning and risk mitigation
+  - Prompt testing and validation strategy
+  - Developer onboarding and documentation
+  - Future enhancements (versioning, analytics, optimization)
+- **Recommended timeframe:** After initial implementation is complete (2-3 weeks)
+- **Preparation needed:** 
+  - Have PromptLibrary architecture implemented
+  - Initial YAML files created
+  - Try migrating 1-2 files as proof of concept
+  - Document any issues or questions that arise
+
+---
+
+*Session facilitated using the BMAD-METHOD™ brainstorming framework*

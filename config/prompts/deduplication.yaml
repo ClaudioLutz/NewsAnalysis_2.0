@@ -1,0 +1,150 @@
+# Deduplication Stage Prompts
+# Extracted from: news_pipeline/gpt_deduplication.py, news_pipeline/cross_run_deduplication.py
+# Purpose: Eliminate duplicate news stories using GPT-based title clustering and cross-run topic comparison
+
+title_clustering_prompt:
+  description: "Clusters article titles that refer to the same news event using GPT"
+  purpose: "Title-based deduplication to eliminate duplicate stories while selecting the most comprehensive article from each cluster"
+  parameters:
+    - name: titles_list
+      required: true
+      type: list
+      description: "List of article titles with indices (format: '1. Title text')"
+  system_template: "You are an AI assistant grouping news article titles that refer to the same event. Group titles by story."
+  user_template: |
+    List the titles:
+    {titles_list}
+    
+    Identify which titles describe the same news. Assign a group label (e.g., Group1, Group2, ...) to each title that belongs to the same story. Output each title's index with its group label, one per line (format: index, groupX).
+  cost_estimate: "~800-1500 tokens per batch (varies with number of articles: ~50 tokens per article + 200 base)"
+  notes: |
+    This prompt is used for within-run deduplication (Step 4 of pipeline).
+    - Processes all scraped articles from today in a single batch
+    - Groups articles by story topic
+    - Returns index-to-group mapping (e.g., "1, Group1")
+    - More cost-effective than content-based similarity (single API call per batch)
+    - Primary article selection done by content length after clustering
+    
+    Expected output format:
+    1, Group1
+    2, Group1
+    3, Group2
+    4, Group3
+    5, Group3
+    
+    Edge cases:
+    - Single article: No clustering needed
+    - All unique: Each gets own group
+    - All duplicates: All assigned to Group1
+  example_usage: |
+    # Usage through GPTTitleDeduplicator
+    from news_pipeline.gpt_deduplication import GPTTitleDeduplicator
+    
+    deduplicator = GPTTitleDeduplicator(db_path)
+    
+    # Build titles list
+    titles_list = []
+    for i, article in enumerate(articles, 1):
+        titles_list.append(f"{i}. {article['title']}")
+    
+    titles_text = '\n'.join(titles_list)
+    
+    # Create prompt
+    system_prompt = "You are an AI assistant grouping news article titles that refer to the same event. Group titles by story."
+    user_prompt = f"""List the titles:
+    {titles_text}
+    
+    Identify which titles describe the same news. Assign a group label (e.g., Group1, Group2, ...) to each title that belongs to the same story. Output each title's index with its group label, one per line (format: index, groupX)."""
+    
+    # Call GPT
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        max_completion_tokens=1000
+    )
+
+cross_run_topic_comparison_prompt:
+  description: "Compares new articles against previous same-day summaries to identify duplicate topic coverage"
+  purpose: "Cross-run deduplication (Step 3.1) to filter articles covering topics already processed in earlier pipeline runs today"
+  parameters:
+    - name: previous_context
+      required: true
+      type: string
+      description: "Formatted string of previous article summaries from earlier runs today (max 10 most recent)"
+    - name: new_title
+      required: true
+      type: string
+      description: "Title of new article to check"
+    - name: new_summary
+      required: true
+      type: string
+      description: "Summary of new article to check (truncated to 500 chars)"
+  system_template: "You are analyzing whether a new article covers the same topic as previous articles. Respond with 'YES' if it's the same topic, 'NO' if it's a different topic."
+  user_template: |
+    Previous articles from today:
+    {previous_context}
+    
+    New article to check:
+    Title: {new_title}
+    Summary: {new_summary}
+    
+    Is this new article covering the same topic as any of the previous articles? Answer YES or NO and indicate which previous article if YES.
+  cost_estimate: "~1000-2000 tokens per article (previous context: 500-1500, new article: 200, response: 50-100)"
+  notes: |
+    This prompt is used for cross-run deduplication between multiple pipeline runs on same day.
+    - Compares each new article individually against up to 10 previous summaries
+    - Previous summaries truncated to 500 chars each for token management
+    - Expects YES/NO response with optional indication of which previous article matched
+    - On error, treats article as unique (conservative approach)
+    - Processing time logged per article for monitoring
+    
+    Expected output examples:
+    - "YES - Same as Previous Article 2 (ID: abc123)"
+    - "NO - Different topic focusing on X rather than Y"
+    - "YES"
+    
+    Edge cases:
+    - First run of day: No previous context, all articles unique
+    - GPT API failure: Treat as unique, log warning
+    - Ambiguous response: Parse conservatively
+  example_usage: |
+    # Usage through CrossRunTopicDeduplicator
+    from news_pipeline.cross_run_deduplication import CrossRunTopicDeduplicator
+    
+    deduplicator = CrossRunTopicDeduplicator(db_path)
+    
+    # Build previous context (limit to 10 most recent)
+    previous_context = "\n\n".join([
+        f"Previous Article {i+1} (ID: {sig['signature_id']}):\n{sig['article_summary'][:500]}"
+        for i, sig in enumerate(previous_signatures[:10])
+    ])
+    
+    # For each new article
+    for article in new_articles:
+        system_prompt = "You are analyzing whether a new article covers the same topic as previous articles. Respond with 'YES' if it's the same topic, 'NO' if it's a different topic."
+        
+        user_prompt = f"""Previous articles from today:
+    {previous_context}
+    
+    New article to check:
+    Title: {article['title']}
+    Summary: {article['summary'][:500]}
+    
+    Is this new article covering the same topic as any of the previous articles? Answer YES or NO and indicate which previous article if YES."""
+        
+        # Call GPT
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_completion_tokens=100
+        )
+        
+        # Parse YES/NO response
+        response_text = response.choices[0].message.content.strip().upper()
+        is_duplicate = response_text.startswith('YES')

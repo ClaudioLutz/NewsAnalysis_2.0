@@ -1,7 +1,7 @@
 {
   "date": "2025-10-05",
   "created_at": "2025-10-05T10:42:43.298417",
-  "generated_at": "2025-10-05T19:54:33.652079",
+  "generated_at": "2025-10-05T22:31:23.105609",
   "executive_summary": {
     "headline": "Executive summary generation failed",
     "executive_summary": "Technical error: 'LanguageConfig' object has no attribute 'get_executive_summary_prompt'",
@@ -29,7 +29,7 @@
       "sources": [],
       "article_count": 0,
       "new_articles_count": 0,
-      "generated_at": "2025-10-05T19:54:33.636359",
+      "generated_at": "2025-10-05T22:31:23.085876",
       "was_updated": false
     },
     "schweizer_wirtschaft": {
@@ -40,7 +40,7 @@
       "sources": [],
       "article_count": 0,
       "new_articles_count": 0,
-      "generated_at": "2025-10-05T19:54:33.640299",
+      "generated_at": "2025-10-05T22:31:23.091037",
       "was_updated": false
     },
     "creditreform_insights": {
@@ -72,7 +72,7 @@
     "total_articles": 9,
     "new_articles": 0,
     "api_calls_made": 0,
-    "execution_time_seconds": 0.012620925903320312
+    "execution_time_seconds": 0.01610088348388672
   },
   "cross_run_dedup_stats": {
     "articles_processed": 10,
@@ -103,6 +103,6 @@
     }
   ],
   "updated": true,
-  "last_updated": "2025-10-05T19:54:33.652079",
+  "last_updated": "2025-10-05T22:31:23.105609",
   "topics_updated": 0
 }

@@ -1,0 +1,141 @@
+# Prompt Fragments for Hybrid Architecture
+# 
+# Reusable prompt fragments that can be composed dynamically in Python.
+# Use these with PromptLibrary.get_fragment() and Python's .format() method.
+#
+# Fragment Naming Conventions:
+# - Use descriptive names that clearly indicate purpose
+# - Keep fragments atomic and focused on one concept
+# - Document what parameters each fragment expects (if any)
+#
+# Example Usage:
+#   header = prompt_lib.get_fragment('common', 'classifier_header')
+#   output_format = prompt_lib.get_fragment('common', 'output_format')
+#   prompt = f"{header}\n\n{dynamic_context}\n\n{output_format}"
+
+common:
+  # Generic expert classifier introduction
+  classifier_header: "You are an expert news classifier for Swiss business and financial news."
+  
+  # Standard JSON response format instruction
+  output_format: "Return strict JSON with is_match, confidence, reason fields."
+  
+  # Swiss business/financial context emphasis
+  swiss_context: "Focus on Swiss business, financial, and regulatory context."
+  
+  # Analyst role for comprehensive analysis
+  analyst_role: "You are an expert Swiss business and financial news analyst."
+  
+  # Structured output instruction for summaries
+  structured_summary_format: |
+    Return strict JSON with:
+    - title: cleaned/enhanced article title
+    - summary: concise 150-200 word summary capturing main points
+    - key_points: array of 3-6 most important bullet points
+    - entities: object with exactly these keys:
+      - companies: array of company names mentioned
+      - people: array of person names mentioned
+      - locations: array of places/countries mentioned
+      - topics: array of key topics/themes
+  
+  # Analysis focus areas for Swiss business context
+  swiss_analysis_focus: |
+    Focus on:
+    1. Swiss business context and implications
+    2. Financial impacts and market relevance
+    3. Key stakeholders and companies mentioned
+    4. Important dates, numbers, and metrics
+    5. Strategic implications and future outlook
+    
+    Be precise, factual, and focus on business/financial significance.
+
+filter:
+  # Generic classification fragments
+  classifier_intro: "You are an expert news classifier for Swiss business and financial news."
+  
+  classification_task: |
+    Your task is to determine if an article is relevant to the topic: {topic}
+    
+    Topic keywords: {keywords}
+  
+  classification_criteria: |
+    Classify based on:
+    1. Title content and keywords
+    2. URL structure and domain
+    3. Relevance to Swiss business/financial context
+  
+  classification_output: |
+    Return strict JSON with:
+    - is_match: boolean (true if relevant)
+    - confidence: number 0-1 (how confident you are)
+    - topic: the topic being classified
+    - reason: brief explanation (max 240 chars)
+    
+    Be precise and conservative - only mark as relevant if clearly related to the topic.
+  
+  # Creditreform-specific fragments
+  creditreform_analyst_role: "You are an expert Swiss financial news analyst specializing in B2B credit risk assessment."
+  
+  creditreform_context_template: |
+    CREDITREFORM CONTEXT:
+    {description}
+    
+    You're filtering news for a Product Manager/Data Analyst at Creditreform Switzerland who needs:
+    - Actionable insights for credit risk products and services
+    - Regulatory changes affecting B2B credit assessment
+    - Market intelligence on competitors and industry trends
+    - Swiss-specific financial and business developments
+  
+  focus_areas_header: "KEY FOCUS AREAS:"
+  
+  relevance_scale: |
+    CLASSIFICATION CRITERIA:
+    - HIGH RELEVANCE (0.85+): Direct impact on credit risk business, regulatory changes, competitor news
+    - MEDIUM RELEVANCE (0.70-0.84): Industry trends, general business climate affecting B2B credit
+    - LOW RELEVANCE (< 0.70): Tangential business news, consumer finance, unrelated topics
+  
+  creditreform_output: |
+    Return strict JSON with:
+    - is_match: boolean (true if relevant for Creditreform business)
+    - confidence: number 0-1 (how relevant/actionable this is)
+    - topic: "creditreform_insights"
+    - reason: brief business justification (max 200 chars)
+    
+    Be selective - only mark articles that provide actionable business intelligence.
+
+analysis:
+  # Fragments for analyzer.py - Story 011.6
+  # Will contain fragments for summarization and entity extraction
+  
+  # Task description for comprehensive article summarization
+  summarization_task: "Your task is to create a comprehensive summary of the article with key insights and extracted entities."
+
+deduplication:
+  # Placeholder for Story 011.6 - if deduplication uses prompts
+  # Currently deduplication.py uses ML models, not LLM prompts
+
+formatting:
+  # German rating agency system prompt for creditworthiness analysis
+  rating_agency_analyst_role: |
+    Du bist ein Senior-Produktmanager bei einer Schweizer Rating-Agentur, die sich auf die Bewertung der Bonität (Kreditwürdigkeit) von Unternehmen und Personen spezialisiert hat.
+
+    Analysiere die bereitgestellten Nachrichten aus Sicht der Kreditwürdigkeit und des Kreditrisikos. Fokussiere auf:
+
+    1. Makroökonomische Faktoren, die Kreditrisiken beeinflussen
+    2. Regulatorische Änderungen mit Auswirkungen auf Finanzinstitute
+    3. Sektorale Risiken und Chancen
+    4. Operative Risiken (Cyber, Compliance, Governance)
+    5. Liquiditäts- und Kapitalmarktentwicklungen
+
+    Erstelle eine professionelle Analyse in deutscher Sprache mit folgender Struktur:
+    - executive_summary: Kurze Zusammenfassung der wichtigsten Kreditrisiko-Implikationen
+    - risk_assessment: Detaillierte Risikoanalyse nach Kategorien
+    - sector_implications: Auswirkungen auf verschiedene Sektoren
+    - rating_methodology_updates: Empfehlungen für Rating-Methodik-Anpassungen
+    - immediate_actions: Sofortige Handlungsempfehlungen für das Rating-Team
+
+    Bitte geben Sie die Ausgabe als JSON-Objekt zurück.
+
+digest:
+  # Placeholder for Story 011.6 - incremental_digest.py migration
+  # Will contain fragments for digest generation and merging

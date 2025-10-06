@@ -1,0 +1,156 @@
+# Formatting Stage Prompts
+# Extracted from: news_pipeline/german_rating_formatter.py, news_pipeline/language_config.py
+# Purpose: Rating report generation and article formatting
+
+# DUPLICATE FOUND: Rating analysis prompt exists in TWO locations
+# - language_config.py: get_rating_analysis_prompt() [MORE FORMAL - "Sie" form]
+# - german_rating_formatter.py: system_prompt in _generate_rating_analysis() [LESS FORMAL - "Du" form]
+# DECISION: Use language_config.py version (formal "Sie" form is more professional for rating agency reports)
+# ACTION: Remove german_rating_formatter.py version in Story 011.3 migration
+
+rating_analysis_prompt:
+  description: "Generates German rating agency analysis from daily digest data"
+  purpose: "Creates professional creditworthiness analysis with rating agency perspective for German market"
+  duplicate_location: "news_pipeline/german_rating_formatter.py line ~144 (informal 'Du' form with extra JSON instruction)"
+  chosen_version: "language_config.py (formal 'Sie' form, more professional)"
+  parameters:
+    - name: digest_data
+      required: true
+      type: dict
+      description: "Daily digest JSON data with date, executive_summary, trending_topics, topic_digests"
+  template: |
+    Sie sind ein Senior-Produktmanager bei einer Schweizer Rating-Agentur, die sich auf die Bewertung der Bonität (Kreditwürdigkeit) von Unternehmen und Personen spezialisiert hat.
+    
+    Analysieren Sie die bereitgestellten Nachrichten aus Sicht der Kreditwürdigkeit und des Kreditrisikos. Fokussieren Sie auf:
+    
+    1. Makroökonomische Faktoren, die Kreditrisiken beeinflussen
+    2. Regulatorische Änderungen mit Auswirkungen auf Finanzinstitute
+    3. Sektorale Risiken und Chancen
+    4. Operative Risiken (Cyber, Compliance, Governance)
+    5. Liquiditäts- und Kapitalmarktentwicklungen
+    
+    Erstellen Sie eine professionelle Analyse in deutscher Sprache mit folgender Struktur:
+    - executive_summary: Kurze Zusammenfassung der wichtigsten Kreditrisiko-Implikationen
+    - risk_assessment: Detaillierte Risikoanalyse nach Kategorien
+    - sector_implications: Auswirkungen auf verschiedene Sektoren
+    - rating_methodology_updates: Empfehlungen für Rating-Methodik-Anpassungen
+    - immediate_actions: Sofortige Handlungsempfehlungen für das Rating-Team
+  response_format: "json_object"
+  cost_estimate: "~1500-2500 tokens per analysis (digest data: 1000-1500, response: 500-1000, using MODEL_ANALYSIS/gpt-5)"
+  notes: |
+    This prompt generates rating agency analysis for German markdown reports.
+    
+    DUPLICATE STATUS:
+    - Original location: language_config.py (formal "Sie" form)
+    - Duplicate location: german_rating_formatter.py (informal "Du" form + extra JSON instruction)
+    - Difference: Formality level ("Sie" vs "Du") and JSON output instruction
+    - Decision: Keep language_config.py version (more professional)
+    - Migration: Remove duplicate from german_rating_formatter.py in Story 011.3
+    
+    Key characteristics:
+    - Always in German (regardless of PIPELINE_LANGUAGE setting)
+    - Focused on credit risk and creditworthiness perspective
+    - Structured JSON output with specific sections
+    - Uses MODEL_ANALYSIS (typically gpt-5) for comprehensive analysis
+    
+    Used in German rating report generation:
+    - Called by GermanRatingFormatter._generate_rating_analysis()
+    - Fallback to _generate_basic_analysis() if AI unavailable
+    - Output rendered via Jinja2 template (daily_digest.md.j2)
+  example_usage: |
+    # Current usage through GermanRatingFormatter
+    from news_pipeline.german_rating_formatter import GermanRatingFormatter
+    
+    formatter = GermanRatingFormatter()
+    
+    # Prepare digest data
+    analysis_input = {
+        "date": "2025-10-05",
+        "executive_summary": {...},
+        "trending_topics": [...],
+        "topic_digests": {...}
+    }
+    
+    # Generate analysis (uses language_config.py version)
+    # In practice, german_rating_formatter.py duplicates this prompt
+    analysis = formatter._generate_rating_analysis(digest_data)
+    
+    # Future usage after Story 011.3 migration:
+    # from news_pipeline.prompt_library import PromptLibrary
+    # prompt_lib = PromptLibrary(lang_config)
+    # system_prompt = prompt_lib.formatting.rating_analysis_prompt(
+    #     digest_data=analysis_input
+    # )
+
+article_key_points_prompt:
+  description: "Extracts exactly 3 concise key bullet points from an article summary in German"
+  purpose: "Generates readable, scannable bullet points for German rating reports"
+  parameters:
+    - name: summary
+      required: true
+      type: string
+      description: "Article summary text to extract key points from"
+  template: |
+    Extrahiere genau 3 prägnante, leicht lesbare Stichpunkte aus der Artikelzusammenfassung.
+    
+    Anforderungen:
+    - Jeder Punkt muss klar, direkt und verständlich sein.
+    - Verwende einfache, konkrete Sprache – wo möglich ohne Fachjargon.
+    - Halte jeden Punkt bei 1–2 kurzen Sätzen.
+    - Konzentriere dich auf die wichtigsten Fakten oder Implikationen.
+    - Mach die Punkte gut scannbar und angenehm lesbar.
+    
+    Gib ausschließlich die 3 Stichpunkte zurück, je einer pro Zeile, beginnend mit einem Bindestrich (-).
+  cost_estimate: "~300-600 tokens per article (summary: 200-400, response: 100-200, using MODEL_FULL/gpt-5)"
+  notes: |
+    This prompt generates exactly 3 bullet points for rating report articles.
+    
+    Key characteristics:
+    - Always in German
+    - Focused on readability and scannability
+    - Avoids jargon where possible
+    - Each point: 1-2 short sentences
+    - Output format: "- Point text" (one per line)
+    - Uses MODEL_FULL (gpt-5) with low reasoning effort
+    
+    Used in German rating report generation:
+    - Called by GermanRatingFormatter._generate_article_key_points()
+    - Integrated via _resolve_source_metadata() 
+    - Only includes articles with successful key point generation
+    - Skips articles where generation fails (logs debug message)
+    
+    Output parsing:
+    - Splits response by newlines
+    - Removes bullet markers (-, *, •)
+    - Removes numbering (1., 2., etc.)
+    - Returns list of 3 clean strings
+    
+    Quality control:
+    - Returns None if GPT returns empty response
+    - Returns None if no bullet points parsed successfully
+    - Logs warnings for parsing failures
+  example_usage: |
+    # Current usage through GermanRatingFormatter
+    from news_pipeline.german_rating_formatter import GermanRatingFormatter
+    
+    formatter = GermanRatingFormatter()
+    
+    # Generate key points from summary
+    summary = "Die Schweizer Nationalbank hat die Zinsen um 0.25% gesenkt..."
+    key_points = formatter._generate_article_key_points(summary)
+    
+    # Returns: ["Point 1 text", "Point 2 text", "Point 3 text"] or None
+    
+    # Internal API call:
+    # response = client.responses.create(
+    #     model="gpt-5",
+    #     instructions=instructions,
+    #     input=[{"role": "user", "content": f"Article summary:\n{summary}"}],
+    #     max_output_tokens=1000,
+    #     reasoning={"effort": "low"}
+    # )
+    
+    # Future usage after Story 011.3 migration:
+    # from news_pipeline.prompt_library import PromptLibrary
+    # prompt_lib = PromptLibrary(lang_config)
+    # prompt = prompt_lib.formatting.article_key_points_prompt(summary=summary)

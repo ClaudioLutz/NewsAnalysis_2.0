@@ -1,0 +1,21 @@
+Baseline created: 2025-10-05 21:32:43
+Pipeline run completed successfully
+Output file: baseline_output.md (bonitaets_tagesanalyse_2025-10-05_5.md)
+Database snapshot: baseline.db
+Status: Pre-migration baseline established
+
+Pipeline stats from baseline run:
+- Collected: 783 articles
+- After dedup: 553 articles
+- Matched: 0 articles (no matches today - normal)
+- Selected: 0 articles
+- Scraped: 0 articles
+- Summarized: 0 articles
+- Duration: 0:04:05
+
+Notable baseline behavior:
+- Pipeline completed successfully
+- Error noted: 'LanguageConfig' object has no attribute 'get_executive_summary_prompt'
+  (This is from Story 010.2 removal, expected and will be fixed in this migration)
+- German rating report generated successfully
+- All standard pipeline stages executed

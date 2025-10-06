@@ -1,0 +1,23 @@
+# Example prompt configuration for testing PromptLibrary architecture
+# This file validates that the YAML loading, caching, and parameter substitution work correctly
+
+classification_prompt:
+  description: "Classifies articles by topic relevance for testing"
+  purpose: "Validates PromptLibrary architecture with parameter substitution"
+  parameters:
+    - name: topic
+      required: true
+      description: "Topic to filter by (e.g., 'creditreform')"
+  template: |
+    You are a Swiss business news analyst.
+    
+    Classify the following article for relevance to {topic}.
+    
+    Determine if the article is relevant to {topic} analysis.
+  cost_estimate: "~500 tokens per call"
+  example_usage: |
+    prompt = prompt_lib.filtering.classification_prompt(topic="creditreform")
+
+test_prompt:
+  description: "Simple test prompt without parameters"
+  template: "This is a test prompt for validation."

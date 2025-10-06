@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 
 from .paths import template_path, resource_path
+from .prompt_library import PromptLibrary
+from .language_config import LanguageConfig
 
 # Load environment variables
 load_dotenv()
@@ -35,6 +37,10 @@ class GermanRatingFormatter:
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize prompt library with language config
+        lang_config = LanguageConfig("de")  # German for rating reports
+        self.prompt_lib = PromptLibrary(lang_config)
         
         # Initialize OpenAI client for sequential thinking if available
         if OpenAI:
@@ -343,24 +349,8 @@ Gib ausschließlich die 3 Stichpunkte zurück, je einer pro Zeile, beginnend mit
             if not self.client:
                 return self._generate_basic_analysis(digest_data)
             
-            system_prompt = """Du bist ein Senior-Produktmanager bei einer Schweizer Rating-Agentur, die sich auf die Bewertung der Bonität (Kreditwürdigkeit) von Unternehmen und Personen spezialisiert hat.
-
-Analysiere die bereitgestellten Nachrichten aus Sicht der Kreditwürdigkeit und des Kreditrisikos. Fokussiere auf:
-
-1. Makroökonomische Faktoren, die Kreditrisiken beeinflussen
-2. Regulatorische Änderungen mit Auswirkungen auf Finanzinstitute
-3. Sektorale Risiken und Chancen
-4. Operative Risiken (Cyber, Compliance, Governance)
-5. Liquiditäts- und Kapitalmarktentwicklungen
-
-Erstelle eine professionelle Analyse in deutscher Sprache mit folgender Struktur:
-- executive_summary: Kurze Zusammenfassung der wichtigsten Kreditrisiko-Implikationen
-- risk_assessment: Detaillierte Risikoanalyse nach Kategorien
-- sector_implications: Auswirkungen auf verschiedene Sektoren
-- rating_methodology_updates: Empfehlungen für Rating-Methodik-Anpassungen
-- immediate_actions: Sofortige Handlungsempfehlungen für das Rating-Team
-
-Bitte geben Sie die Ausgabe als JSON-Objekt zurück."""
+            # Use fragment from PromptLibrary
+            system_prompt = self.prompt_lib.get_fragment('formatting', 'rating_agency_analyst_role')
 
             # Prepare digest data for analysis
             analysis_input = {

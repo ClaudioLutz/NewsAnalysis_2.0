@@ -104,12 +104,12 @@ def env_or_resource(env_var: str, *default_parts: str) -> Path:
     return resource_path(*default_parts)
 
 
-def safe_open(path: Path, mode: str = 'r', **kwargs):
+def safe_open(path, mode: str = 'r', **kwargs):
     """
     Safely open a file with helpful error messages if it doesn't exist.
     
     Args:
-        path: Path to the file
+        path: Path to the file (str or Path)
         mode: File mode (default: 'r')
         **kwargs: Additional arguments passed to open()
         
@@ -119,6 +119,10 @@ def safe_open(path: Path, mode: str = 'r', **kwargs):
     Raises:
         FileNotFoundError: With detailed context if file doesn't exist
     """
+    # Convert to Path if string
+    if isinstance(path, str):
+        path = Path(path)
+    
     if 'w' not in mode and 'a' not in mode and not path.exists():
         raise FileNotFoundError(
             f"Required file not found: {path}\n"

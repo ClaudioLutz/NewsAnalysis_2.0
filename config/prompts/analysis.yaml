@@ -1,0 +1,121 @@
+# Analysis Stage Prompts
+# Extracted from: news_pipeline/analyzer.py
+# Purpose: Meta-summary generation and topic analysis using MODEL_FULL
+
+# NOTE: analyzer.py uses language_config.get_topic_digest_prompt() method
+# The actual prompt template is in news_pipeline/language_config.py
+# This will be migrated to PromptLibrary in Story 011.3
+
+topic_digest_prompt:
+  description: "Generates meta-summary digest for a topic by aggregating multiple article summaries"
+  purpose: "Creates comprehensive topic analysis with headline, why_it_matters, and key sources (Step 5 of pipeline)"
+  parameters:
+    - name: topic
+      required: true
+      type: string
+      description: "Topic name for digest generation"
+    - name: date_range
+      required: true
+      type: string
+      description: "Time period description (e.g., 'today', 'this week')"
+    - name: article_count
+      required: true
+      type: int
+      description: "Number of articles being analyzed"
+    - name: articles
+      required: true
+      type: list
+      description: "List of article objects with title, url, source, summary, and top 3 key_points"
+  template: |
+    # PLACEHOLDER - Actual template in language_config.py
+    # Will be extracted in Story 011.3 migration
+    
+    System prompt obtained via: lang_config.get_topic_digest_prompt(topic)
+    
+    User input format:
+    {
+      "topic": "{topic}",
+      "date_range": "{date_range}",
+      "article_count": {article_count},
+      "articles": [
+        {
+          "title": "Article title",
+          "url": "Article URL", 
+          "source": "Source name",
+          "summary": "Article summary text",
+          "key_points": ["Point 1", "Point 2", "Point 3"]
+        },
+        ...
+      ]
+    }
+  response_schema:
+    type: "object"
+    properties:
+      headline:
+        type: "string"
+        description: "Concise headline summarizing the digest"
+      why_it_matters:
+        type: "string"
+        description: "Explanation of significance and impact"
+      sources:
+        type: "array"
+        items:
+          type: "string"
+        description: "List of source URLs referenced"
+    required: ["headline", "why_it_matters", "sources"]
+  cost_estimate: "~2000-4000 tokens per digest (varies with article count: ~200 tokens per article + 500 base, using MODEL_FULL)"
+  notes: |
+    This prompt is used in Step 5 (Meta-Analysis) to aggregate multiple article summaries.
+    
+    Key characteristics:
+    - Uses MODEL_FULL (gpt-5) for comprehensive analysis
+    - Processes multiple articles in single API call
+    - Generates structured JSON response with schema validation
+    - Respects language configuration (via LanguageConfig)
+    - Focuses on top 3 key points per article to manage token usage
+    
+    Current implementation:
+    - Prompt template stored in language_config.py
+    - Retrieved via lang_config.get_topic_digest_prompt(topic)
+    - Will be migrated to PromptLibrary YAML in Story 011.3
+    
+    Response includes:
+    - headline: Digestible summary of all articles
+    - why_it_matters: Business/strategic significance
+    - sources: URLs of analyzed articles
+    
+    Used for both daily and weekly digest generation:
+    - Daily: days=1, limit=50
+    - Weekly: days=7, limit=100
+  example_usage: |
+    # Current usage through language_config
+    from news_pipeline.analyzer import MetaAnalyzer
+    from news_pipeline.language_config import get_language_config
+    
+    analyzer = MetaAnalyzer(db_path)
+    
+    # Get recent summaries
+    summaries = analyzer.get_recent_summaries(topic="creditreform_insights", days=1)
+    
+    # Generate digest
+    digest = analyzer.generate_topic_digest(
+        topic="creditreform_insights",
+        summaries=summaries,
+        date_range="today"
+    )
+    
+    # Internal process:
+    # 1. Build system prompt via lang_config.get_topic_digest_prompt(topic)
+    # 2. Prepare input data with article summaries
+    # 3. Call OpenAI with structured response schema
+    # 4. Parse and return digest
+    
+    # Future usage after Story 011.3 migration:
+    # from news_pipeline.prompt_library import PromptLibrary
+    # prompt_lib = PromptLibrary(lang_config)
+    # system_prompt = prompt_lib.analysis.topic_digest_prompt(
+    #     topic="creditreform_insights",
+    #     date_range="today",
+    #     article_count=len(summaries),
+    #     articles=formatted_articles
+    # )

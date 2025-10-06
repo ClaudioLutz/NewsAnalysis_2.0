@@ -2,6 +2,7 @@
 ArticleSummarizer - Step 4: Individual Article Summarization
 
 MODEL_MINI powered summarization with structured outputs for key insights.
+Uses fragment-based hybrid prompt architecture for maintainable prompts.
 """
 
 import os
@@ -15,10 +16,12 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from openai import OpenAI
+from .prompt_library import PromptLibrary
+from .language_config import LanguageConfig
 
 
 class ArticleSummarizer:
-    """Individual article processing using MODEL_MINI."""
+    """Individual article processing using MODEL_MINI with fragment-based prompts."""
     
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -27,16 +30,22 @@ class ArticleSummarizer:
         
         self.logger = logging.getLogger(__name__)
         
-        # Load summary schema
+        # Initialize prompt library with language config
+        lang_config = LanguageConfig("de")  # Default to German
+        self.prompt_lib = PromptLibrary(lang_config)
+        
+        # Set base directory for file paths
         from pathlib import Path
-        BASE_DIR = Path(__file__).resolve().parents[1]  # .../NewsAnalysis_2.0
-        schema_path = BASE_DIR / "schemas" / "summary.schema.json"
+        self.BASE_DIR = Path(__file__).resolve().parents[1]  # .../NewsAnalysis_2.0
+        
+        # Load summary schema
+        schema_path = self.BASE_DIR / "schemas" / "summary.schema.json"
         with schema_path.open('r', encoding='utf-8') as f:
             self.summary_schema = json.load(f)
     
     def summarize_article(self, content: str, title: str = "", url: str = "") -> Dict[str, Any]:
         """
-        Summarize a single article using MODEL_MINI.
+        Summarize a single article using MODEL_MINI with fragment-based prompts.
         
         Args:
             content: Full article text
@@ -47,29 +56,13 @@ class ArticleSummarizer:
             Structured summary with title, summary, key_points, and entities
         """
         try:
-            # Build system prompt
-            system_prompt = """You are an expert Swiss business and financial news analyst.
-
-Your task is to create a comprehensive summary of the article with key insights and extracted entities.
-
-Return strict JSON with:
-- title: cleaned/enhanced article title
-- summary: concise 150-200 word summary capturing main points
-- key_points: array of 3-6 most important bullet points
-- entities: object with exactly these keys:
-  - companies: array of company names mentioned
-  - people: array of person names mentioned
-  - locations: array of places/countries mentioned
-  - topics: array of key topics/themes
-
-Focus on:
-1. Swiss business context and implications
-2. Financial impacts and market relevance
-3. Key stakeholders and companies mentioned
-4. Important dates, numbers, and metrics
-5. Strategic implications and future outlook
-
-Be precise, factual, and focus on business/financial significance."""
+            # Build system prompt using fragments
+            analyst_role = self.prompt_lib.get_fragment('common', 'analyst_role')
+            task_description = self.prompt_lib.get_fragment('analysis', 'summarization_task')
+            output_format = self.prompt_lib.get_fragment('common', 'structured_summary_format')
+            focus_areas = self.prompt_lib.get_fragment('common', 'swiss_analysis_focus')
+            
+            system_prompt = f"{analyst_role}\n\n{task_description}\n\n{output_format}\n\n{focus_areas}"
             
             # Prepare user input
             user_input = {
@@ -266,7 +259,7 @@ Be precise, factual, and focus on business/financial significance."""
             # Use max_articles from config
             import yaml
             try:
-                cfg_path = BASE_DIR / "config" / "pipeline_config.yaml"
+                cfg_path = self.BASE_DIR / "config" / "pipeline_config.yaml"
                 with cfg_path.open('r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                     limit = config['pipeline']['filtering'].get('max_articles_to_process', 35)

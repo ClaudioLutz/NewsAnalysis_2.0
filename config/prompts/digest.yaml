@@ -1,0 +1,302 @@
+# Digest Stage Prompts
+# Extracted from: news_pipeline/summarizer.py, news_pipeline/incremental_digest.py, news_pipeline/language_config.py
+# Purpose: Article summarization and digest generation
+
+# NOTE: Most digest prompts are in language_config.py and accessed via methods
+# These will be migrated to PromptLibrary in Story 011.3
+
+article_summarization_prompt:
+  description: "Summarizes individual articles with structured outputs for key insights"
+  purpose: "Creates comprehensive article summaries with key points and entity extraction (Step 4 of pipeline)"
+  parameters:
+    - name: title
+      required: false
+      type: string
+      description: "Article title (optional, used for context)"
+    - name: url
+      required: false
+      type: string
+      description: "Article URL (optional, used for context)"
+    - name: content
+      required: true
+      type: string
+      description: "Full article text to summarize"
+  template: |
+    You are an expert Swiss business and financial news analyst.
+    
+    Your task is to create a comprehensive summary of the article with key insights and extracted entities.
+    
+    Return strict JSON with:
+    - title: cleaned/enhanced article title
+    - summary: concise 150-200 word summary capturing main points
+    - key_points: array of 3-6 most important bullet points
+    - entities: object with exactly these keys:
+      - companies: array of company names mentioned
+      - people: array of person names mentioned
+      - locations: array of places/countries mentioned
+      - topics: array of key topics/themes
+    
+    Focus on:
+    1. Swiss business context and implications
+    2. Financial impacts and market relevance
+    3. Key stakeholders and companies mentioned
+    4. Important dates, numbers, and metrics
+    5. Strategic implications and future outlook
+    
+    Be precise, factual, and focus on business/financial significance.
+  response_schema:
+    type: "object"
+    schema_file: "schemas/summary.schema.json"
+    strict: true
+  cost_estimate: "~1000-2000 tokens per article (content: 800-1500, response: 200-500, using MODEL_MINI/gpt-5-mini)"
+  notes: |
+    This prompt summarizes individual articles in Step 4 of the pipeline.
+    
+    Key characteristics:
+    - Uses MODEL_MINI (gpt-5-mini) for cost efficiency
+    - Structured JSON output with strict schema validation
+    - Focus on Swiss business and financial context
+    - Extracts entities for downstream analysis
+    
+    Output validation:
+    - Requires non-empty summary field
+    - Defaults to empty arrays for key_points and entities if missing
+    - Logs errors for failed summarizations
+    
+    Used in pipeline:
+    - Called by ArticleSummarizer.summarize_article()
+    - Processes scraped articles with extracted_text >= 600 chars
+    - Saves to summaries table with JSON fields
+    - Updates pipeline_stage to 'summarized' when run_id provided
+  example_usage: |
+    # Current usage through ArticleSummarizer
+    from news_pipeline.summarizer import ArticleSummarizer
+    
+    summarizer = ArticleSummarizer(db_path)
+    
+    # Summarize single article
+    summary_data = summarizer.summarize_article(
+        content=article_text,
+        title="Article Title",
+        url="https://example.com/article"
+    )
+    
+    # Returns structured dict with title, summary, key_points, entities
+    
+    # Future usage after Story 011.3 migration:
+    # from news_pipeline.prompt_library import PromptLibrary
+    # prompt_lib = PromptLibrary(lang_config)
+    # system_prompt = prompt_lib.digest.article_summarization_prompt(
+    #     title=title,
+    #     url=url,
+    #     content=content
+    # )
+
+partial_digest_generation_prompt:
+  description: "Generates focused digest update for new articles only (incremental processing)"
+  purpose: "Creates partial digest from new articles that will be merged with existing digest"
+  source_location: "news_pipeline/language_config.py - get_partial_digest_prompt()"
+  parameters:
+    - name: topic
+      required: true
+      type: string
+      description: "Topic name for digest generation"
+    - name: new_articles
+      required: true
+      type: list
+      description: "List of new article objects with title, url, source, summary, and top 3 key_points"
+  template_de: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten und erstellen fokussierte Updates.
+    
+    Erstellen Sie ein fokussiertes Digest-Update nur für NEUE {topic}-Artikel.
+    
+    Erstellen Sie:
+    - key_insights: 3-5 neue Schlüsselerkenntnisse aus diesen Artikeln
+    - important_developments: Wichtige neue Entwicklungen zum Hervorheben
+    - new_sources: URLs der analysierten neuen Artikel
+    - entities_mentioned: Erwähnte Schlüsselunternehmen/Organisationen
+    
+    Fokussieren Sie auf das, was NEU und bedeutend ist. Dies wird mit bestehenden Analysen zusammengeführt.
+  template_en: |
+    You are a senior Swiss business analyst creating focused updates.
+    
+    Generate a focused digest update for NEW {topic} articles only.
+    
+    Create:
+    - key_insights: 3-5 new key insights from these articles
+    - important_developments: Major new developments to highlight  
+    - new_sources: URLs of the new articles analyzed
+    - entities_mentioned: Key entities/companies mentioned
+    
+    Focus on what's NEW and significant. This will be merged with existing analysis.
+  response_schema:
+    type: "object"
+    properties:
+      key_insights:
+        type: "array"
+        items:
+          type: "string"
+        maxItems: 5
+      important_developments:
+        type: "array"
+        items:
+          type: "string"
+        maxItems: 3
+      new_sources:
+        type: "array"
+        items:
+          type: "string"
+      entities_mentioned:
+        type: "array"
+        items:
+          type: "string"
+    required: ["key_insights", "important_developments", "new_sources", "entities_mentioned"]
+  cost_estimate: "~800-1500 tokens per update (varies with article count: ~150 tokens per article + 200 base, using MODEL_MINI)"
+  notes: |
+    This prompt generates partial digests for incremental updates.
+    
+    Current implementation:
+    - Prompt template stored in language_config.py
+    - Retrieved via lang_config.get_partial_digest_prompt(topic)
+    - Will be migrated to PromptLibrary YAML in Story 011.3
+    
+    Key characteristics:
+    - Language-aware (German or English based on PIPELINE_LANGUAGE)
+    - Focuses only on NEW articles not yet processed
+    - Designed to be merged with existing digest
+    - Lightweight schema for incremental updates
+    
+    Used in incremental digest generation:
+    - Called by IncrementalDigestGenerator.generate_partial_digest()
+    - Processes new articles not in processed_ids set
+    - Output merged via merge_digests()
+  example_usage: |
+    # Current usage through IncrementalDigestGenerator
+    from news_pipeline.incremental_digest import IncrementalDigestGenerator
+    from news_pipeline.language_config import get_language_config
+    
+    generator = IncrementalDigestGenerator(db_path)
+    lang_config = get_language_config()
+    
+    # Get system prompt (language-aware)
+    system_prompt = lang_config.get_partial_digest_prompt(topic)
+    
+    # Generate partial digest for new articles
+    partial_digest = generator.generate_partial_digest(topic, new_articles)
+    
+    # Future usage after Story 011.3 migration:
+    # prompt_lib = PromptLibrary(lang_config)
+    # system_prompt = prompt_lib.digest.partial_digest_generation_prompt(
+    #     topic=topic,
+    #     new_articles=new_articles
+    # )
+
+digest_merging_prompt:
+  description: "Merges existing digest with new insights to create comprehensive updated digest"
+  purpose: "Combines existing and new content while maintaining context and prioritizing recent insights"
+  source_location: "news_pipeline/language_config.py - get_merge_digests_prompt()"
+  parameters:
+    - name: topic
+      required: true
+      type: string
+      description: "Topic name for digest merging"
+    - name: existing_digest
+      required: true
+      type: dict
+      description: "Current digest content (may contain old format fields)"
+    - name: new_insights
+      required: true
+      type: dict
+      description: "Partial digest with new article insights"
+  template_de: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten und führen Digest-Updates zusammen.
+    
+    Führen Sie das bestehende {topic}-Digest mit neuen Erkenntnissen zusammen, um ein umfassendes aktualisiertes Digest zu erstellen.
+    
+    Nehmen Sie das bestehende Digest und neue Erkenntnisse und erstellen Sie:
+    - headline: Aktualisierte überzeugende Schlagzeile mit allen Informationen
+    - why_it_matters: Aktualisierte Bedeutungserklärung
+    - sources: Kombinierte Quellen-URLs (dedupliziert)
+    
+    Priorisieren Sie die wichtigsten und neuesten Erkenntnisse unter Beibehaltung des Kontexts.
+  template_en: |
+    You are a senior Swiss business analyst merging digest updates.
+    
+    Merge existing {topic} digest with new insights to create comprehensive updated digest.
+    
+    Take the existing digest and new insights, then create:
+    - headline: Updated compelling headline reflecting all information
+    - why_it_matters: Updated significance explanation
+    - sources: Combined source URLs (deduplicated)
+    
+    Prioritize the most important and recent insights while maintaining context.
+  response_schema:
+    type: "object"
+    properties:
+      headline:
+        type: "string"
+      why_it_matters:
+        type: "string"
+      sources:
+        type: "array"
+        items:
+          type: "string"
+    required: ["headline", "why_it_matters", "sources"]
+  cost_estimate: "~1000-2000 tokens per merge (existing digest: 500-1000, new insights: 300-500, response: 200-500, using MODEL_MINI)"
+  notes: |
+    This prompt merges partial digests with existing digests.
+    
+    Current implementation:
+    - Prompt template stored in language_config.py
+    - Retrieved via lang_config.get_merge_digests_prompt(topic)
+    - Will be migrated to PromptLibrary YAML in Story 011.3
+    
+    Key characteristics:
+    - Language-aware (German or English based on PIPELINE_LANGUAGE)
+    - Handles backward compatibility with old formats
+    - Silently drops deprecated fields ('bullets', 'executive_summary')
+    - Prioritizes recent insights while maintaining context
+    
+    Backward compatibility:
+    - Warns if old format fields detected
+    - Drops 'bullets' and 'executive_summary' from output
+    - Maintains clean schema for new format
+    
+    Error handling:
+    - Falls back to existing digest with updated counts on error
+    - Logs merge failures for debugging
+  example_usage: |
+    # Current usage through IncrementalDigestGenerator
+    from news_pipeline.incremental_digest import IncrementalDigestGenerator
+    from news_pipeline.language_config import get_language_config
+    
+    generator = IncrementalDigestGenerator(db_path)
+    lang_config = get_language_config()
+    
+    # Get system prompt (language-aware)
+    system_prompt = lang_config.get_merge_digests_prompt(topic)
+    
+    # Merge digests
+    final_digest = generator.merge_digests(existing_digest, partial_digest, topic)
+    
+    # Future usage after Story 011.3 migration:
+    # prompt_lib = PromptLibrary(lang_config)
+    # system_prompt = prompt_lib.digest.digest_merging_prompt(
+    #     topic=topic,
+    #     existing_digest=existing_digest,
+    #     new_insights=partial_digest
+    # )
+
+# Additional language_config.py prompts used in digest stage:
+
+key_points_extraction_prompt:
+  description: "Extracts most important points from article as structured list"
+  purpose: "Identifies business-relevant key points for downstream analysis"
+  source_location: "news_pipeline/language_config.py - get_key_points_extraction_prompt()"
+  note: "Currently in language_config.py - will be migrated to PromptLibrary in Story 011.3"
+
+entity_extraction_prompt:
+  description: "Identifies and categorizes key entities from article"
+  purpose: "Extracts companies, people, locations, financial instruments for entity analysis"
+  source_location: "news_pipeline/language_config.py - get_entity_extraction_prompt()"
+  note: "Currently in language_config.py - will be migrated to PromptLibrary in Story 011.3"

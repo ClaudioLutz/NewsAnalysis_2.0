@@ -22,6 +22,8 @@ from .utils import (
 )
 import time
 from .utils import url_hash
+from .prompt_library import PromptLibrary
+from .language_config import LanguageConfig
 
 # Import path utilities for robust file access
 from .paths import config_path, resource_path, safe_open
@@ -45,6 +47,10 @@ class AIFilter:
         self.confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.70"))
         
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize PromptLibrary with LanguageConfig
+        self.language_config = LanguageConfig()
+        self.prompt_lib = PromptLibrary(self.language_config)
         
         # Load topics configuration using robust path resolution
         if topics_config_path is None:
@@ -117,6 +123,30 @@ class AIFilter:
         finally:
             conn.close()
 
+    def _build_classification_prompt(self, topic: str, keywords: List[str]) -> str:
+        """Build classification prompt using fragments + dynamic data.
+        
+        Args:
+            topic: Topic name for classification
+            keywords: List of topic keywords
+            
+        Returns:
+            Composed system prompt string
+        """
+        # Get static fragments
+        intro = self.prompt_lib.get_fragment('filter', 'classifier_intro')
+        task_template = self.prompt_lib.get_fragment('filter', 'classification_task')
+        criteria = self.prompt_lib.get_fragment('filter', 'classification_criteria')
+        output = self.prompt_lib.get_fragment('filter', 'classification_output')
+        
+        # Build dynamic context
+        keywords_text = ', '.join(keywords) if keywords else ''
+        
+        # Compose final prompt - fill in template variables
+        task = task_template.format(topic=topic, keywords=keywords_text)
+        
+        return f"{intro}\n\n{task}\n\n{criteria}\n\n{output}"
+    
     def classify_article(self, title: str, url: str, topic: str) -> Dict[str, Any]:
         """
         Classify a single article for relevance using MODEL_MINI.
@@ -135,25 +165,8 @@ class AIFilter:
             include_keywords = topic_config.get('include', [])
             topic_threshold = topic_config.get('confidence_threshold', self.confidence_threshold)
             
-            # Build system prompt
-            system_prompt = f"""You are an expert news classifier for Swiss business and financial news.
-            
-Your task is to determine if an article is relevant to the topic: {topic}
-
-Topic keywords: {', '.join(include_keywords)}
-
-Classify based on:
-1. Title content and keywords
-2. URL structure and domain
-3. Relevance to Swiss business/financial context
-
-Return strict JSON with:
-- is_match: boolean (true if relevant)
-- confidence: number 0-1 (how confident you are)
-- topic: the topic being classified
-- reason: brief explanation (max 240 chars)
-
-Be precise and conservative - only mark as relevant if clearly related to the topic."""
+            # Build system prompt using fragments
+            system_prompt = self._build_classification_prompt(topic, include_keywords)
             
             # User input
             user_input = {
@@ -781,55 +794,58 @@ Be precise and conservative - only mark as relevant if clearly related to the to
         
         return {target_topic: summary_results}
 
-    def build_creditreform_system_prompt(self, topic_config: Dict[str, Any]) -> str:
+    def _format_focus_areas(self, focus_areas: Dict[str, Any]) -> str:
+        """Format focus areas dictionary into display text.
+        
+        Args:
+            focus_areas: Dict mapping area names to config
+            
+        Returns:
+            Formatted text for prompt insertion
         """
-        Build enhanced system prompt with Creditreform business context.
+        if not focus_areas or not isinstance(focus_areas, dict):
+            return ""
+        
+        focus_text = ""
+        for area, info in focus_areas.items():
+            if info and isinstance(info, dict):
+                keywords = info.get('keywords', [])
+                priority = info.get('priority', 'medium')
+                if keywords:
+                    focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
+        
+        return focus_text
+    
+    def build_creditreform_system_prompt(self, topic_config: Dict[str, Any]) -> str:
+        """Build enhanced system prompt with Creditreform business context using fragments.
+        
+        Args:
+            topic_config: Topic configuration dictionary
+            
+        Returns:
+            Composed system prompt string
         """
         # Add defensive checks for None values
         if not topic_config:
             topic_config = {}
         
+        # Get static fragments
+        analyst_role = self.prompt_lib.get_fragment('filter', 'creditreform_analyst_role')
+        context_template = self.prompt_lib.get_fragment('filter', 'creditreform_context_template')
+        focus_header = self.prompt_lib.get_fragment('filter', 'focus_areas_header')
+        relevance_scale = self.prompt_lib.get_fragment('filter', 'relevance_scale')
+        output = self.prompt_lib.get_fragment('filter', 'creditreform_output')
+        
+        # Build dynamic parts
         description = topic_config.get('description', '')
         focus_areas = topic_config.get('focus_areas', {})
         
-        # Ensure focus_areas is not None
-        if focus_areas is None:
-            focus_areas = {}
+        # Format dynamic content
+        context = context_template.format(description=description)
+        focus_text = self._format_focus_areas(focus_areas)
         
-        focus_text = ""
-        if isinstance(focus_areas, dict):
-            for area, info in focus_areas.items():
-                if info and isinstance(info, dict):
-                    keywords = info.get('keywords', [])
-                    priority = info.get('priority', 'medium')
-                    if keywords:
-                        focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
-        
-        return f"""You are an expert Swiss financial news analyst specializing in B2B credit risk assessment.
-
-CREDITREFORM CONTEXT:
-{description}
-
-You're filtering news for a Product Manager/Data Analyst at Creditreform Switzerland who needs:
-- Actionable insights for credit risk products and services
-- Regulatory changes affecting B2B credit assessment
-- Market intelligence on competitors and industry trends
-- Swiss-specific financial and business developments
-
-KEY FOCUS AREAS:{focus_text}
-
-CLASSIFICATION CRITERIA:
-- HIGH RELEVANCE (0.85+): Direct impact on credit risk business, regulatory changes, competitor news
-- MEDIUM RELEVANCE (0.70-0.84): Industry trends, general business climate affecting B2B credit
-- LOW RELEVANCE (< 0.70): Tangential business news, consumer finance, unrelated topics
-
-Return strict JSON with:
-- is_match: boolean (true if relevant for Creditreform business)
-- confidence: number 0-1 (how relevant/actionable this is)
-- topic: "creditreform_insights"
-- reason: brief business justification (max 200 chars)
-
-Be selective - only mark articles that provide actionable business intelligence."""
+        # Compose final prompt
+        return f"{analyst_role}\n\n{context}\n\n{focus_header}{focus_text}\n\n{relevance_scale}\n\n{output}"
 
     def classify_article_enhanced(self, title: str, url: str, topic: str, 
                                  system_prompt: str, priority_score: float = 0.0) -> Dict[str, Any]:

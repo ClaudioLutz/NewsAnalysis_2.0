@@ -1,0 +1,156 @@
+# Filtering Stage Prompts
+# Extracted from: news_pipeline/filter.py
+# Purpose: AI-powered relevance filtering for news articles
+
+classification_prompt:
+  description: "Classifies articles by topic relevance using GPT"
+  purpose: "Initial filtering stage to identify creditreform-related articles based on title and URL"
+  parameters:
+    - name: topic
+      required: true
+      type: string
+      description: "Topic to classify against (e.g., 'creditreform_insights')"
+    - name: title
+      required: true
+      type: string
+      description: "Article title to classify"
+    - name: url
+      required: true
+      type: string
+      description: "Article URL to help with classification"
+    - name: include_keywords
+      required: true
+      type: list
+      description: "List of keywords relevant to the topic"
+    - name: topic_threshold
+      required: true
+      type: float
+      description: "Confidence threshold for this topic (0.0-1.0)"
+  template: |
+    You are an expert news classifier for Swiss business and financial news.
+    
+    Your task is to determine if an article is relevant to the topic: {topic}
+    
+    Topic keywords: {include_keywords}
+    
+    Classify based on:
+    1. Title content and keywords
+    2. URL structure and domain
+    3. Relevance to Swiss business/financial context
+    
+    Return strict JSON with:
+    - is_match: boolean (true if relevant)
+    - confidence: number 0-1 (how confident you are)
+    - topic: the topic being classified
+    - reason: brief explanation (max 240 chars)
+    
+    Be precise and conservative - only mark as relevant if clearly related to the topic.
+    
+    Article to classify:
+    Title: {title}
+    URL: {url}
+    Topic: {topic}
+  cost_estimate: "~500-800 tokens per article (prompt: 400, response: 100-400)"
+  example_usage: |
+    # Basic usage through PromptLibrary
+    from news_pipeline.prompt_library import PromptLibrary
+    from news_pipeline.language_config import LanguageConfig
+    
+    lang_config = LanguageConfig("de")
+    prompt_lib = PromptLibrary(lang_config)
+    
+    # Get topic configuration
+    topic_config = topics_config['topics']['creditreform_insights']
+    include_keywords = topic_config.get('include', [])
+    topic_threshold = topic_config.get('confidence_threshold', 0.70)
+    
+    # Generate prompt
+    prompt = prompt_lib.filtering.classification_prompt(
+        topic="creditreform_insights",
+        title="Swiss banking regulation changes announced",
+        url="https://finma.ch/news/article-123",
+        include_keywords=include_keywords,
+        topic_threshold=topic_threshold
+    )
+
+creditreform_system_prompt:
+  description: "Enhanced system prompt with Creditreform business context for classification"
+  purpose: "Provides domain-specific context about Creditreform's B2B credit risk business to improve classification accuracy"
+  parameters:
+    - name: topic
+      required: true
+      type: string
+      description: "Topic being classified (typically 'creditreform_insights')"
+    - name: description
+      required: true
+      type: string
+      description: "Topic description from configuration"
+    - name: focus_areas
+      required: true
+      type: dict
+      description: "Dictionary of focus areas with keywords and priorities"
+  template: |
+    You are an expert Swiss financial news analyst specializing in B2B credit risk assessment.
+    
+    CREDITREFORM CONTEXT:
+    {description}
+    
+    You're filtering news for a Product Manager/Data Analyst at Creditreform Switzerland who needs:
+    - Actionable insights for credit risk products and services
+    - Regulatory changes affecting B2B credit assessment
+    - Market intelligence on competitors and industry trends
+    - Swiss-specific financial and business developments
+    
+    KEY FOCUS AREAS:
+    {focus_areas_text}
+    
+    CLASSIFICATION CRITERIA:
+    - HIGH RELEVANCE (0.85+): Direct impact on credit risk business, regulatory changes, competitor news
+    - MEDIUM RELEVANCE (0.70-0.84): Industry trends, general business climate affecting B2B credit
+    - LOW RELEVANCE (< 0.70): Tangential business news, consumer finance, unrelated topics
+    
+    Return strict JSON with:
+    - is_match: boolean (true if relevant for Creditreform business)
+    - confidence: number 0-1 (how relevant/actionable this is)
+    - topic: "{topic}"
+    - reason: brief business justification (max 200 chars)
+    
+    Be selective - only mark articles that provide actionable business intelligence.
+  cost_estimate: "~600-900 tokens per article (enhanced context + prompt: 500, response: 100-400)"
+  notes: |
+    This prompt builds on classification_prompt with additional Creditreform-specific context.
+    Used in classify_article_enhanced() for improved relevance detection.
+    
+    The focus_areas_text parameter is formatted as:
+    - {area} ({priority} priority): {keywords_list}
+    
+    For example:
+    - regulatory_compliance (high priority): FINMA, KYC, AML, Basel III
+    - market_intelligence (medium priority): competitors, market share, pricing
+  example_usage: |
+    # Usage through PromptLibrary (enhanced classification)
+    from news_pipeline.prompt_library import PromptLibrary
+    from news_pipeline.language_config import LanguageConfig
+    
+    lang_config = LanguageConfig("de")
+    prompt_lib = PromptLibrary(lang_config)
+    
+    # Get topic configuration
+    topic_config = topics_config['topics']['creditreform_insights']
+    description = topic_config.get('description', '')
+    focus_areas = topic_config.get('focus_areas', {})
+    
+    # Format focus areas text
+    focus_text = ""
+    for area, info in focus_areas.items():
+        keywords = info.get('keywords', [])
+        priority = info.get('priority', 'medium')
+        if keywords:
+            focus_text += f"\n- {area} ({priority} priority): {', '.join(keywords)}"
+    
+    # Generate enhanced prompt
+    prompt = prompt_lib.filtering.creditreform_system_prompt(
+        topic="creditreform_insights",
+        description=description,
+        focus_areas_text=focus_text
+    )
