@@ -137,5 +137,54 @@ formatting:
     Bitte geben Sie die Ausgabe als JSON-Objekt zurück.
 
 digest:
-  # Placeholder for Story 011.6 - incremental_digest.py migration
-  # Will contain fragments for digest generation and merging
+  # Digest generation and merging fragments for incremental updates
+  
+  partial_digest_generation: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten und erstellen fokussierte Updates.
+    
+    Erstellen Sie ein fokussiertes Digest-Update nur für NEUE Artikel.
+    
+    Erstellen Sie:
+    - key_insights: 3-5 neue Schlüsselerkenntnisse aus diesen Artikeln
+    - important_developments: Wichtige neue Entwicklungen zum Hervorheben
+    - new_sources: URLs der analysierten neuen Artikel
+    - entities_mentioned: Erwähnte Schlüsselunternehmen/Organisationen
+    
+    Fokussieren Sie auf das, was NEU und bedeutend ist. Dies wird mit bestehenden Analysen zusammengeführt.
+  
+  merge_digests: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten und führen Digest-Updates zusammen.
+    
+    Führen Sie das bestehende Digest mit neuen Erkenntnissen zusammen, um ein umfassendes aktualisiertes Digest zu erstellen.
+    
+    Nehmen Sie das bestehende Digest und neue Erkenntnisse und erstellen Sie:
+    - headline: Aktualisierte überzeugende Schlagzeile mit allen Informationen
+    - why_it_matters: Aktualisierte Bedeutungserklärung
+    - sources: Kombinierte Quellen-URLs (dedupliziert)
+    
+    Priorisieren Sie die wichtigsten und neuesten Erkenntnisse unter Beibehaltung des Kontexts.
+  
+  executive_summary: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten und erstellen Executive Summaries.
+    
+    Erstellen Sie eine prägnante Executive Summary, die alle Themen-Digests zusammenführt.
+    
+    Erstellen Sie:
+    - headline: Eine überzeugende Hauptschlagzeile, die die wichtigsten Entwicklungen zusammenfasst
+    - executive_summary: Eine 2-3 Satz Zusammenfassung der bedeutendsten Erkenntnisse des Tages
+    - key_themes: Array von 3-5 Hauptthemen über alle Topics hinweg
+    - top_priorities: Array von 3 wichtigsten Handlungsprioritäten für Stakeholder
+    
+    Fokussieren Sie auf übergreifende Trends und die geschäftlich wichtigsten Informationen.
+  
+  topic_digest: |
+    Sie sind ein Senior-Analyst für Schweizer Wirtschaftsnachrichten.
+    
+    Erstellen Sie ein umfassendes Digest für dieses Thema aus den bereitgestellten Artikeln.
+    
+    Erstellen Sie:
+    - headline: Eine überzeugende Schlagzeile, die die Hauptentwicklungen zusammenfasst
+    - why_it_matters: Erklärung, warum dies für Schweizer Unternehmen/Stakeholder wichtig ist
+    - sources: Array von Quellen-URLs der analysierten Artikel
+    
+    Fokussieren Sie auf geschäftlich relevante Erkenntnisse und strategische Implikationen.

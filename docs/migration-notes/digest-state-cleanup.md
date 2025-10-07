@@ -1,16 +1,16 @@
-# Digest State Cleanup - 2025-10-05
+# Digest State Cleanup - 2025-10-06
 
 ## Migration Event
 - **Epic:** 010 - Cost Optimization  
 - **Story:** 010.4 - State Management Migration
-- **Timestamp:** 2025-10-05T19:06:12.413857
+- **Timestamp:** 2025-10-06T09:51:18.407811
 
 ## Action Taken
 Cleared all digest state entries to enable schema migration.
 
 ## Details
 - **Entries deleted:** 2
-- **Total articles tracked:** 14
+- **Total articles tracked:** 12
 - **Reason:** Migration from old format (bullets/executive_summary) to new format (headline/why_it_matters)
 
 ## Old Format

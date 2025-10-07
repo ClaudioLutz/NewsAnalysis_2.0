@@ -1,0 +1,92 @@
+{
+  "date": "2025-10-07",
+  "created_at": "2025-10-07T08:45:29.326156",
+  "generated_at": "2025-10-07T08:45:29.326156",
+  "executive_summary": {
+    "headline": "Kurzarbeitsverlängerung als strategischer Schutzschirm für Exportindustrie gegen mögliche US-Zölle",
+    "executive_summary": "Die Verlängerung der Kurzarbeitsentschädigung von 18 auf 24 Monate bietet exportorientierten Schweizer Unternehmen (insbesondere Maschinen- und Uhrenindustrie) einen zeitlichen Puffer, um Personal zu halten und Absatz- sowie Preisstrategien bei drohenden US-Zöllen anzupassen. Kurzfristig ist die direkte Nutzung begrenzt, doch politisch und betriebswirtschaftlich wirkt die Maßnahme als Risikoversicherung—weshalb jetzt Szenarioarbeit, Liquiditätsplanung, vorsorgliche KAE-Anmeldung und Compliance-Vorbereitung geschäftskritisch sind.",
+    "key_themes": [
+      "Politische Absicherung: Staatlicher Schutzschirm verlängert Kurzarbeitsfrist als Präventivinstrument gegen externe Handelsrisiken",
+      "Begrenzte unmittelbare Inanspruchnahme, hoher strategischer Wert: geringfügige kurzfristige Nutzungszahlen vs. hoher Nutzen für Planungssicherheit",
+      "Handlungsrelevante Risiken: mögliche Ausweitung von Zöllen (z.B. Pharma) erhöht Exponierung erheblich",
+      "Operative Maßnahmen: Szenarioanalysen, Liquiditäts- und Personalplanung sowie Compliance- und KAE-Vorbereitung sind zentral",
+      "Supply‑Chain- und Preisstrategie: Transferpreisoptimierung, Lagersteuerung in den USA und mögliche Produktionsverlagerungen in die EU"
+    ],
+    "top_priorities": [
+      "Durchführen von Szenario‑ und Stresstests (bis 24 Monate) zur Quantifizierung von Umsatz-, Cashflow- und Personalrisiken",
+      "Vorsorgliche Anmeldung/Readiness für Kurzarbeitsentschädigung (KAE) und Aufbau/Prüfung interner Compliance‑ und Meldeprozesse",
+      "Überprüfen und Anpassen von Liquiditätsplanung, Transferpreisen, Lagerbeständen und Standortstrategie (inkl. EU‑Kontingenten) zur Sicherstellung operativer Flexibilität"
+    ],
+    "total_articles": 1,
+    "total_topics": 3,
+    "generated_at": "2025-10-07T08:45:29.318159"
+  },
+  "trending_topics": [
+    {
+      "topic": "creditreform_insights",
+      "article_count": 48,
+      "avg_confidence": 0.764,
+      "source_diversity": 5,
+      "active_days": 5,
+      "trend_score": 43.83
+    }
+  ],
+  "topic_digests": {
+    "bonitaet_b2b_ch": {
+      "topic": "bonitaet_b2b_ch",
+      "date_range": "today",
+      "headline": "No bonitaet_b2b_ch news found",
+      "why_it_matters": "No significant developments to report.",
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-07T08:44:23.587512",
+      "was_updated": false
+    },
+    "schweizer_wirtschaft": {
+      "topic": "schweizer_wirtschaft",
+      "date_range": "today",
+      "headline": "No schweizer_wirtschaft news found",
+      "why_it_matters": "No significant developments to report.",
+      "sources": [],
+      "article_count": 0,
+      "new_articles_count": 0,
+      "generated_at": "2025-10-07T08:44:23.594085",
+      "was_updated": false
+    },
+    "creditreform_insights": {
+      "headline": "Schutzschirm für Exportindustrie: Schweiz verlängert Kurzarbeit auf 24 Monate – unmittelbarer Bedarf klein, aber strategisch wichtig wegen möglicher US-Zölle",
+      "why_it_matters": "Für exportorientierte Schweizer Industriebetriebe (insb. Maschinen- und Uhrenhersteller) schafft die Verlängerung der Kurzarbeitsentschädigung von 18 auf 24 Monate einen zusätzlichen Puffer, um Fachkräfte zu halten und Anpassungen vorzunehmen, falls US-Zölle die Nachfrage dämpfen. Kurzfristig ist die direkte Nutzung begrenzt (maximal rund 86 Firmen könnten in den nächsten sechs Monaten profitieren; aktuell 33’611 gemeldete Personen im September 2025), doch das Instrument wirkt als Risikoversicherung: Unternehmen können Zeit gewinnen, um Preis- und Absatzstrategien zu justieren, US-Lagerbestände zu steuern, konzerninterne Transferpreise zu optimieren (wie von PwC angedeutet) und gegebenenfalls Produktionskapazitäten in die EU zu verlagern. Sollte der Zollrahmen ausgeweitet werden (etwa auf Pharma), steigen die Expositionsrisiken deutlich – daher sind jetzt Szenarioarbeit, Liquiditäts- und Personalplanung über einen 24‑Monats-Horizont sowie eine vorsorgliche KAE-Anmeldung und Compliance-Vorbereitung geschäftskritisch.",
+      "sources": [
+        "https://www.srf.ch/news/wirtschaft/schweizer-arbeitsmarkt-verlaengerte-kurzarbeitsentschaedigung-fuer-wen-eigentlich"
+      ],
+      "topic": "creditreform_insights",
+      "date_range": "today",
+      "article_count": 1,
+      "generated_at": "2025-10-07T08:45:14.758202",
+      "new_articles_count": 1,
+      "was_updated": true
+    }
+  },
+  "generation_type": "incremental",
+  "stats": {
+    "topics": 3,
+    "total_articles": 1,
+    "new_articles": 1,
+    "api_calls_made": 1,
+    "execution_time_seconds": 51.20524716377258
+  },
+  "cross_run_dedup_stats": {
+    "articles_processed": 1,
+    "duplicates_found": 0,
+    "unique_articles": 1,
+    "first_run": true
+  },
+  "source_yield": [
+    {
+      "host": "www.srf.ch",
+      "count": 1,
+      "share_pct": 100.0
+    }
+  ]
+}

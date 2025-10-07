@@ -211,9 +211,12 @@ class EnhancedMetaAnalyzer:
                     # This is a simplified cache - in production you'd want more sophisticated caching
                     pass
             
-            # Generate fresh executive summary using language configuration
-            language_config = get_language_config()
-            system_prompt = language_config.get_executive_summary_prompt()
+            # Generate fresh executive summary using prompt library
+            from news_pipeline.prompt_library import PromptLibrary
+            from news_pipeline.language_config import LanguageConfig
+            lang_config = LanguageConfig("de")
+            prompt_lib = PromptLibrary(lang_config)
+            system_prompt = prompt_lib.get_fragment('digest', 'executive_summary')
             
             # Prepare input
             input_data = {

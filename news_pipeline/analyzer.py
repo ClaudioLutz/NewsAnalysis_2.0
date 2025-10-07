@@ -17,7 +17,8 @@ load_dotenv(override=True)
 
 from openai import OpenAI
 
-from news_pipeline.language_config import get_language_config
+from news_pipeline.language_config import get_language_config, LanguageConfig
+from news_pipeline.prompt_library import PromptLibrary
 from .paths import config_path, safe_open, output_path
 
 
@@ -30,6 +31,10 @@ class MetaAnalyzer:
         self.model = os.getenv("MODEL_FULL", "gpt-5")
         self.language = os.getenv("PIPELINE_LANGUAGE", "en")
         self.lang_config = get_language_config()
+        
+        # Initialize prompt library for German prompts
+        lang_config = LanguageConfig("de")
+        self.prompt_lib = PromptLibrary(lang_config)
         
         self.logger = logging.getLogger(__name__)
     
@@ -122,8 +127,8 @@ class MetaAnalyzer:
                     'article_count': 0
                 }
             
-            # Build system prompt
-            system_prompt = self.lang_config.get_topic_digest_prompt(topic)
+            # Build system prompt using prompt library
+            system_prompt = self.prompt_lib.get_fragment('digest', 'topic_digest')
             
             # Prepare input data
             input_data = {

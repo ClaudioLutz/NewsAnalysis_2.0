@@ -16,7 +16,8 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from openai import OpenAI
-from news_pipeline.language_config import get_language_config
+from news_pipeline.prompt_library import PromptLibrary
+from news_pipeline.language_config import LanguageConfig
 
 
 class DigestStateManager:
@@ -144,6 +145,10 @@ class IncrementalDigestGenerator:
         self.model = os.getenv("MODEL_MINI", "gpt-4o-mini")
         self.state_manager = DigestStateManager(db_path)
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize prompt library for German prompts
+        lang_config = LanguageConfig("de")
+        self.prompt_lib = PromptLibrary(lang_config)
     
     def get_new_articles_for_topic(self, topic: str, date: str, 
                                   processed_ids: Set[int]) -> List[Dict[str, Any]]:
@@ -192,9 +197,8 @@ class IncrementalDigestGenerator:
             return None
             
         try:
-            # Use language configuration for prompt
-            language_config = get_language_config()
-            system_prompt = language_config.get_partial_digest_prompt(topic)
+            # Use prompt library for system prompt
+            system_prompt = self.prompt_lib.get_fragment('digest', 'partial_digest_generation')
 
             # Prepare input data
             input_data = {
@@ -270,9 +274,8 @@ class IncrementalDigestGenerator:
             if 'executive_summary' in existing_digest:
                 self.logger.warning(f"Old format detected in existing digest for {topic}: contains 'executive_summary' field (will be dropped)")
             
-            # Use language configuration for prompt
-            language_config = get_language_config()
-            system_prompt = language_config.get_merge_digests_prompt(topic)
+            # Use prompt library for system prompt
+            system_prompt = self.prompt_lib.get_fragment('digest', 'merge_digests')
 
             input_data = {
                 'topic': topic,
